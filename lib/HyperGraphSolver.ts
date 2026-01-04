@@ -10,9 +10,8 @@ import type {
   SerializedHyperGraph,
   Region,
   RegionId,
-  ConnectionId,
-  RegionPortAssignment,
   SolvedRoute,
+  RegionPortAssignment,
 } from "./types"
 import { convertSerializedConnectionsToConnections } from "./convertSerializedConnectionsToConnections"
 import { PriorityQueue } from "./PriorityQueue"
@@ -122,7 +121,8 @@ export class HyperGraphSolver<
         candidate.lastPort!,
         candidate.port,
       ) +
-      (candidate.ripRequired ? this.ripCost : 0)
+      (candidate.ripRequired ? this.ripCost : 0) +
+      this.getPortUsagePenalty(candidate.port)
     )
   }
 
@@ -193,13 +193,15 @@ export class HyperGraphSolver<
     }
 
     let cursorCandidate = finalCandidate
+    let anyRipsRequired = false
     while (cursorCandidate.parent) {
       solvedRoute.path.unshift(cursorCandidate)
       cursorCandidate = cursorCandidate.parent as CandidateType
+      anyRipsRequired = anyRipsRequired || cursorCandidate.ripRequired
     }
 
     // Rip any routes that are connected to the solved route and requeue
-    if (finalCandidate.ripRequired) {
+    if (anyRipsRequired) {
       solvedRoute.requiredRip = true
       const routesToRip: Set<SolvedRoute> = new Set()
       for (const candidate of solvedRoute.path) {
@@ -218,15 +220,19 @@ export class HyperGraphSolver<
     }
 
     for (const candidate of solvedRoute.path) {
-      if (!candidate.lastPort) continue
       candidate.port.assignment = {
+        solvedRoute,
+        connection: this.currentConnection!,
+      }
+      if (!candidate.lastPort) continue
+      const regionPortAssignment: RegionPortAssignment = {
         regionPort1: candidate.lastPort,
         regionPort2: candidate.port,
         region: candidate.lastRegion!,
         connection: this.currentConnection!,
         solvedRoute,
       }
-      candidate.lastRegion!.assignments?.push(candidate.port.assignment)
+      candidate.lastRegion!.assignments?.push(regionPortAssignment)
     }
 
     this.solvedRoutes.push(solvedRoute)
@@ -244,22 +250,15 @@ export class HyperGraphSolver<
   routeSolvedHook(solvedRoute: SolvedRoute) {}
 
   ripSolvedRoute(solvedRoute: SolvedRoute) {
-    const assignments: RegionPortAssignment[] = solvedRoute.path
-      .map((candidate) => candidate.port.assignment!)
-      .filter(Boolean)
-    const portsAssigned: Set<RegionPort> = new Set()
-    for (const assignment of assignments) {
-      portsAssigned.add(assignment.regionPort1)
-      portsAssigned.add(assignment.regionPort2)
-    }
-    for (const port of portsAssigned) {
+    for (const port of solvedRoute.path.map((candidate) => candidate.port)) {
       port.ripCount = (port.ripCount ?? 0) + 1
-      port.assignment = undefined
-    }
-    for (const assignment of assignments) {
-      assignment.region.assignments = assignment.region.assignments?.filter(
-        (a) => a !== assignment,
+      port.region1.assignments = port.region1.assignments?.filter(
+        (a) => a.regionPort1 !== port && a.regionPort2 !== port,
       )
+      port.region2.assignments = port.region2.assignments?.filter(
+        (a) => a.regionPort1 !== port && a.regionPort2 !== port,
+      )
+      port.assignment = undefined
     }
     this.solvedRoutes = this.solvedRoutes.filter((r) => r !== solvedRoute)
   }

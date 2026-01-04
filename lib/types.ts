@@ -9,7 +9,7 @@ export type RegionPort = {
   region1: Region
   region2: Region
   d: any
-  assignment?: RegionPortAssignment
+  assignment?: PortAssignment
   /**
    * The number of times this port has been ripped. Can be used to penalize
    * ports that are likely to block off connections
@@ -22,6 +22,12 @@ export type Region = {
   ports: RegionPort[]
   d: any
   assignments?: RegionPortAssignment[]
+}
+
+export type PortAssignment = {
+  solvedRoute: SolvedRoute
+  connection: Connection
+  // prevPort and nextPort if needed later
 }
 
 export type RegionPortAssignment = {
