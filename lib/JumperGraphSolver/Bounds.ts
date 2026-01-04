@@ -1,3 +1,5 @@
+import type { JRegion } from "./jumper-types"
+
 export type Bounds = {
   minX: number
   minY: number

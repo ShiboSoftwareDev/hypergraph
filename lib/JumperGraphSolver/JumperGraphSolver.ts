@@ -8,8 +8,11 @@ import type {
   SerializedHyperGraph,
   SolvedRoute,
 } from "../types"
+import type { JPort, JRegion } from "./jumper-types"
 
 export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
+  UNIT_OF_COST = "distance"
+
   constructor(input: {
     inputGraph: HyperGraph | SerializedHyperGraph
     inputConnections: (Connection | SerializedConnection)[]
@@ -24,11 +27,12 @@ export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     return 0
   }
   override computeIncreasedRegionCostIfPortsAreUsed(
-    region: Region,
-    port1: RegionPort,
-    port2: RegionPort,
+    region: JRegion,
+    port1: JPort,
+    port2: JPort,
   ): number {
     return 0
   }
+
   override routeSolvedHook(solvedRoute: SolvedRoute) {}
 }
