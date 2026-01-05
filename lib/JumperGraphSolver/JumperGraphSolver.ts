@@ -32,9 +32,7 @@ export class JumperGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     region: JRegion,
     port1: JPort,
     port2: JPort,
-  ): number {
-    return 0
-  }
+  ): number {}
 
   override routeSolvedHook(solvedRoute: SolvedRoute) {}
 

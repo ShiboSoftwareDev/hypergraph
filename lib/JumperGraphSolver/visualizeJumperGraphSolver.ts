@@ -114,7 +114,7 @@ export const visualizeJumperGraphSolver = (
 
   // Draw path of next candidate to be processed
   const nextCandidate = candidates[0] as Candidate<JRegion, JPort> | undefined
-  if (nextCandidate && solver.currentConnection) {
+  if (!solver.solved && nextCandidate && solver.currentConnection) {
     const connectionColor = getConnectionColor(
       solver.currentConnection.connectionId,
     )
