@@ -154,6 +154,18 @@ export const generateJumperGrid = ({
       const isFirstRow = row === 0
       const isFirstCol = col === 0
       const isLastRow = row === rows - 1
+      const isLastCol = col === cols - 1
+
+      // Calculate right edge: extends to next cell's leftPad.minX, or surroundSize if last column
+      let frameRightEdge: number
+      if (isLastCol) {
+        frameRightEdge = mainMaxX + surroundSize
+      } else {
+        // Next cell's leftPad.minX
+        const nextCenterX = (col + 1) * horizontalSpacing
+        const nextLeftPadCenterX = nextCenterX - padToPad / 2
+        frameRightEdge = nextLeftPadCenterX - padHalfLength
+      }
 
       // Top region: only for first row
       let top: JRegion | null = null
@@ -162,7 +174,7 @@ export const generateJumperGrid = ({
           `${idPrefix}:T`,
           {
             minX: isFirstCol ? mainMinX - surroundSize : mainMinX,
-            maxX: mainMaxX + surroundSize,
+            maxX: frameRightEdge,
             minY: mainMaxY,
             maxY: mainMaxY + surroundSize,
           },
@@ -178,7 +190,7 @@ export const generateJumperGrid = ({
         `${idPrefix}:B`,
         {
           minX: isFirstCol ? mainMinX - surroundSize : mainMinX,
-          maxX: mainMaxX + surroundSize,
+          maxX: frameRightEdge,
           minY: mainMinY - bottomHeight,
           maxY: mainMinY,
         },
@@ -207,7 +219,7 @@ export const generateJumperGrid = ({
         `${idPrefix}:R`,
         {
           minX: mainMaxX,
-          maxX: mainMaxX + surroundSize,
+          maxX: frameRightEdge,
           minY: mainMinY,
           maxY: mainMaxY,
         },
@@ -288,31 +300,15 @@ export const generateJumperGrid = ({
             leftPad,
           ),
         )
-        // A.right connects to B.underjumper (they share edge at leftPad.minX)
-        // But actually underjumper starts at leftPad.maxX, so no direct connection
-        // A.right connects to B.top (if exists) - but B.top is shrunk, so check adjacency
-        if (top) {
-          // A.right.maxX should equal B.top.minX for adjacency
-          // A.right.maxX = prevCell.right.d.bounds.maxX
-          // B.top.minX = mainMinX (since we're not first col)
-          // These should be adjacent if spacing is correct
+        // T-T connection between horizontally adjacent cells (first row only)
+        if (top && prevCell.top) {
           ports.push(
             createPort(
-              `cell_${row}_${col - 1}->cell_${row}_${col}:R-T`,
-              prevCell.right!,
+              `cell_${row}_${col - 1}->cell_${row}_${col}:T-T`,
+              prevCell.top,
               top,
             ),
           )
-          // T-T connection between horizontally adjacent cells (first row only)
-          if (prevCell.top) {
-            ports.push(
-              createPort(
-                `cell_${row}_${col - 1}->cell_${row}_${col}:T-T`,
-                prevCell.top,
-                top,
-              ),
-            )
-          }
         }
         // B-B connection between horizontally adjacent cells
         if (bottom && prevCell.bottom) {

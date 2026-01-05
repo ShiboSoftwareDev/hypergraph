@@ -4,9 +4,14 @@ import { visualizeJumperGraph } from "lib/JumperGraphSolver/visualizeJumperGraph
 
 const jumperGridTopology = generateJumperGrid({
   cols: 3,
-  rows: 2,
-  marginX: 0.5,
-  marginY: 0.5,
+  rows: 3,
+  marginX: 2,
+  marginY: 1,
+  // Channel points
+  // xChannelPointCount: 1
+  // yChannelPointCount: 1
+  // paddingX
+  // paddingY
 })
 
 const graphics = visualizeJumperGraph({
