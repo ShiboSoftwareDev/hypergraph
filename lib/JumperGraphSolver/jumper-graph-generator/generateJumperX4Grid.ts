@@ -818,13 +818,33 @@ export const generateJumperX4Grid = ({
             pad1,
           ),
         )
-        ports.push(
-          createPort(
-            `cell_${row - 1}_${col}->cell_${row}_${col}:B-UJ`,
-            aboveCell.bottom!,
-            underjumper,
-          ),
-        )
+        // Underjumper connections from above cell's bottom - multiple ports when regionsBetweenPads
+        if (regionsBetweenPads) {
+          const ujBounds = underjumper.d.bounds
+          const ujWidth = ujBounds.maxX - ujBounds.minX
+          const portSpacing = ujWidth / 5 // 4 ports with equal spacing
+
+          for (let i = 1; i <= 4; i++) {
+            const portX = ujBounds.minX + portSpacing * i
+            const aboveUJPort: JPort = {
+              portId: `cell_${row - 1}_${col}->cell_${row}_${col}:B-UJ${i}`,
+              region1: aboveCell.bottom!,
+              region2: underjumper,
+              d: { x: portX, y: ujBounds.maxY },
+            }
+            aboveCell.bottom!.ports.push(aboveUJPort)
+            underjumper.ports.push(aboveUJPort)
+            ports.push(aboveUJPort)
+          }
+        } else {
+          ports.push(
+            createPort(
+              `cell_${row - 1}_${col}->cell_${row}_${col}:B-UJ`,
+              aboveCell.bottom!,
+              underjumper,
+            ),
+          )
+        }
         ports.push(
           createPort(
             `cell_${row - 1}_${col}->cell_${row}_${col}:B-P8`,
