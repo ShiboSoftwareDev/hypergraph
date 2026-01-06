@@ -5,7 +5,7 @@ import { createGraphWithConnectionsFromBaseGraph } from "lib/JumperGraphSolver/j
 import { JumperGraphSolver } from "lib/JumperGraphSolver/JumperGraphSolver"
 
 test(
-  "jumper-graph-solver01: solve 1x1 X4 grid with external connections",
+  "jumper-graph-solver02: solve 1x1 X4 grid with 5 external connections",
   { timeout: 30000 },
   () => {
     const baseGraph = generateJumperX4Grid({
@@ -35,6 +35,16 @@ test(
           start: { x: 0, y: -2.955 },
           end: { x: 2.55, y: 1.0 },
           connectionId: "C",
+        },
+        {
+          start: { x: 2.55, y: -1.0 },
+          end: { x: 0, y: 2.955 },
+          connectionId: "D",
+        },
+        {
+          connectionId: "E",
+          start: { x: -2.55, y: -2.955 },
+          end: { x: 2.55, y: 2.955 },
         },
       ],
     )
