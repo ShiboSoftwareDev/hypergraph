@@ -8,8 +8,8 @@ const jumperGridTopology = generateJumperGrid({
   marginX: 2,
   marginY: 1,
   // Channel points
-  xChannelPointCount: 3,
-  yChannelPointCount: 2,
+  innerColChannelPointCount: 3,
+  innerRowChannelPointCount: 2,
   // paddingX
   // paddingY
 })

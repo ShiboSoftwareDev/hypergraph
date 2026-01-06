@@ -11,8 +11,8 @@ test("jumper-graph-generation10: 2x2 grid with external connections", () => {
     rows: 2,
     marginX: 0.5,
     marginY: 0.5,
-    xChannelPointCount: 1,
-    yChannelPointCount: 1,
+    innerColChannelPointCount: 1,
+    innerRowChannelPointCount: 1,
   })
 
   // Add external connections at various boundary positions

@@ -7,8 +7,8 @@ export const generateJumperGrid = ({
   rows,
   marginX,
   marginY,
-  xChannelPointCount = 1,
-  yChannelPointCount = 1,
+  innerColChannelPointCount = 1,
+  innerRowChannelPointCount = 1,
   outerPaddingX = 0.5,
   outerPaddingY = 0.5,
   outerChannelXPoints,
@@ -18,8 +18,8 @@ export const generateJumperGrid = ({
   rows: number
   marginX: number
   marginY: number
-  xChannelPointCount?: number
-  yChannelPointCount?: number
+  innerColChannelPointCount?: number
+  innerRowChannelPointCount?: number
   outerPaddingX?: number
   outerPaddingY?: number
   outerChannelXPoints?: number
@@ -67,7 +67,11 @@ export const generateJumperGrid = ({
   })
 
   // Helper to create a port at the boundary between two regions
-  const createPort = (id: string, region1: JRegion, region2: JRegion): JPort => {
+  const createPort = (
+    id: string,
+    region1: JRegion,
+    region2: JRegion,
+  ): JPort => {
     const b1 = region1.d.bounds
     const b2 = region2.d.bounds
 
@@ -223,7 +227,11 @@ export const generateJumperGrid = ({
 
       // Create main regions
       const leftPad = createRegion(`${idPrefix}:leftPad`, leftPadBounds, true)
-      const rightPad = createRegion(`${idPrefix}:rightPad`, rightPadBounds, true)
+      const rightPad = createRegion(
+        `${idPrefix}:rightPad`,
+        rightPadBounds,
+        true,
+      )
       const underjumper = createRegion(
         `${idPrefix}:underjumper`,
         underjumperBounds,
@@ -423,7 +431,7 @@ export const generateJumperGrid = ({
               `cell_${row}_${col - 1}->cell_${row}_${col}:T-T`,
               prevCell.top,
               top,
-              yChannelPointCount,
+              innerRowChannelPointCount,
             ),
           )
         }
@@ -434,7 +442,7 @@ export const generateJumperGrid = ({
               `cell_${row}_${col - 1}->cell_${row}_${col}:B-B`,
               prevCell.bottom,
               bottom,
-              yChannelPointCount,
+              innerRowChannelPointCount,
             ),
           )
         }

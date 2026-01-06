@@ -9,8 +9,8 @@ test("jumper-graph-generation03", () => {
     rows: 3,
     marginX: 2,
     marginY: 1,
-    xChannelPointCount: 3,
-    yChannelPointCount: 2,
+    innerColChannelPointCount: 3,
+    innerRowChannelPointCount: 2,
   })
 
   expect(
