@@ -72,6 +72,10 @@ export class HyperGraphSolver<
     this.beginNewConnection()
   }
 
+  override getConstructorParams() {
+    return this.input
+  }
+
   computeH(candidate: CandidateType): number {
     return this.estimateCostToEnd(candidate.port)
   }
