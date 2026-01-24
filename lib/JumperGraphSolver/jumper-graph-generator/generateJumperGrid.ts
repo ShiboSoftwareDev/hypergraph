@@ -1,6 +1,9 @@
-import type { JPort, JRegion } from "../jumper-types"
+import type { JPort, JRegion, JumperGraph } from "../jumper-types"
 import { computeBoundsCenter } from "../geometry/getBoundsCenter"
 import { dims0603 } from "./generateSingleJumperRegions"
+import { calculateGraphBounds } from "./calculateGraphBounds"
+import { applyTransformToGraph } from "../geometry/applyTransformToGraph"
+import { compose, translate, rotate } from "transformation-matrix"
 
 export const generateJumperGrid = ({
   cols,
@@ -13,6 +16,7 @@ export const generateJumperGrid = ({
   outerPaddingY = 0.5,
   outerChannelXPoints,
   outerChannelYPoints,
+  orientation = "vertical",
 }: {
   cols: number
   rows: number
@@ -24,7 +28,8 @@ export const generateJumperGrid = ({
   outerPaddingY?: number
   outerChannelXPoints?: number
   outerChannelYPoints?: number
-}) => {
+  orientation?: "vertical" | "horizontal"
+}): JumperGraph => {
   // Calculate outer channel points: use provided value or derive from outer padding
   const effectiveOuterChannelXPoints =
     outerChannelXPoints ?? Math.max(1, Math.floor(outerPaddingX / 0.4))
@@ -353,11 +358,11 @@ export const generateJumperGrid = ({
             `${idPrefix}:T-R`,
             top,
             right,
-            effectiveOuterChannelXPoints,
+            isLastCol
+              ? effectiveOuterChannelXPoints
+              : innerColChannelPointCount,
           ),
         )
-        ports.push(createPort(`${idPrefix}:T-LP`, top, leftPad))
-        ports.push(createPort(`${idPrefix}:T-RP`, top, rightPad))
         ports.push(createPort(`${idPrefix}:T-UJ`, top, underjumper))
       }
 
@@ -378,11 +383,11 @@ export const generateJumperGrid = ({
             `${idPrefix}:B-R`,
             bottom,
             right,
-            effectiveOuterChannelXPoints,
+            isLastCol
+              ? effectiveOuterChannelXPoints
+              : innerColChannelPointCount,
           ),
         )
-        ports.push(createPort(`${idPrefix}:B-LP`, bottom, leftPad))
-        ports.push(createPort(`${idPrefix}:B-RP`, bottom, rightPad))
         ports.push(createPort(`${idPrefix}:B-UJ`, bottom, underjumper))
       }
 
@@ -451,7 +456,7 @@ export const generateJumperGrid = ({
       // Vertical connections from cell above (A on top, current B on bottom)
       if (row > 0) {
         const aboveCell = cells[row - 1][col]
-        // A.bottom connects to B.left, B.leftPad, B.underjumper, B.rightPad, B.right
+        // A.bottom connects to B.left, B.underjumper, B.right
         if (left) {
           ports.push(
             ...createMultiplePorts(
@@ -464,23 +469,9 @@ export const generateJumperGrid = ({
         }
         ports.push(
           createPort(
-            `cell_${row - 1}_${col}->cell_${row}_${col}:B-LP`,
-            aboveCell.bottom!,
-            leftPad,
-          ),
-        )
-        ports.push(
-          createPort(
             `cell_${row - 1}_${col}->cell_${row}_${col}:B-UJ`,
             aboveCell.bottom!,
             underjumper,
-          ),
-        )
-        ports.push(
-          createPort(
-            `cell_${row - 1}_${col}->cell_${row}_${col}:B-RP`,
-            aboveCell.bottom!,
-            rightPad,
           ),
         )
         ports.push(
@@ -488,15 +479,33 @@ export const generateJumperGrid = ({
             `cell_${row - 1}_${col}->cell_${row}_${col}:B-R`,
             aboveCell.bottom!,
             right,
-            effectiveOuterChannelXPoints,
+            isLastCol
+              ? effectiveOuterChannelXPoints
+              : innerColChannelPointCount,
           ),
         )
       }
     }
   }
 
-  return {
+  let graph: JumperGraph = {
     regions,
     ports,
   }
+
+  // Apply rotation transformation for horizontal orientation
+  if (orientation === "horizontal") {
+    const currentBounds = calculateGraphBounds(graph.regions)
+    const currentCenter = computeBoundsCenter(currentBounds)
+
+    // Build transformation matrix: translate to origin, rotate -90°, translate back
+    const matrix = compose(
+      translate(currentCenter.x, currentCenter.y),
+      rotate(-Math.PI / 2),
+      translate(-currentCenter.x, -currentCenter.y),
+    )
+    graph = applyTransformToGraph(graph, matrix)
+  }
+
+  return graph
 }
