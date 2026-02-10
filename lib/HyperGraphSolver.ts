@@ -170,6 +170,59 @@ export class HyperGraphSolver<
     return candidates
   }
 
+  /**
+   * OPTIONALLY OVERRIDE THIS
+   *
+   * Compute the full set of solved routes that must be ripped to accept
+   * `newlySolvedRoute`. By default this returns all conflicting routes
+   * (always-rip behavior)
+   *
+   * Override this to implement partial ripping, where only a subset of
+   * conflicting routes are removed.
+   */
+  computeRoutesToRip(newlySolvedRoute: SolvedRoute): Set<SolvedRoute> {
+    const crossingRoutesToRip = this.computeCrossingRoutes(newlySolvedRoute)
+    const portReuseRoutesToRip = this.computePortOverlapRoutes(newlySolvedRoute)
+    return new Set<SolvedRoute>([
+      ...crossingRoutesToRip,
+      ...portReuseRoutesToRip,
+    ])
+  }
+
+  /**
+   * Returns solved routes that overlap ports with the newly solved route.
+   * Use this in computeRoutesToRip overrides to include port reuse rips.
+   */
+  computePortOverlapRoutes(newlySolvedRoute: SolvedRoute): Set<SolvedRoute> {
+    const portReuseRoutesToRip: Set<SolvedRoute> = new Set()
+    for (const candidate of newlySolvedRoute.path) {
+      if (
+        candidate.port.assignment &&
+        candidate.port.assignment.connection.mutuallyConnectedNetworkId !==
+          newlySolvedRoute.connection.mutuallyConnectedNetworkId
+      ) {
+        portReuseRoutesToRip.add(candidate.port.assignment.solvedRoute)
+      }
+    }
+    return portReuseRoutesToRip
+  }
+
+  computeCrossingRoutes(newlySolvedRoute: SolvedRoute): Set<SolvedRoute> {
+    const crossingRoutesToRip: Set<SolvedRoute> = new Set()
+    for (const candidate of newlySolvedRoute.path) {
+      if (!candidate.lastPort || !candidate.lastRegion) continue
+      const ripsRequired = this.getRipsRequiredForPortUsage(
+        candidate.lastRegion as RegionType,
+        candidate.lastPort as RegionPortType,
+        candidate.port as RegionPortType,
+      )
+      for (const assignment of ripsRequired) {
+        crossingRoutesToRip.add(assignment.solvedRoute)
+      }
+    }
+    return crossingRoutesToRip
+  }
+
   getNextCandidates(currentCandidate: CandidateType): CandidateType[] {
     const currentRegion = currentCandidate.nextRegion!
     const currentPort = currentCandidate.port
@@ -234,38 +287,16 @@ export class HyperGraphSolver<
       cursorCandidate = cursorCandidate.parent as CandidateType | undefined
     }
 
-    // Rip any routes that are connected to the solved route (port reuse) and requeue
-    const routesToRip: Set<SolvedRoute> = new Set()
     if (anyRipsRequired) {
       solvedRoute.requiredRip = true
-      for (const candidate of solvedRoute.path) {
-        if (
-          candidate.port.assignment &&
-          candidate.port.assignment.connection.mutuallyConnectedNetworkId !==
-            this.currentConnection!.mutuallyConnectedNetworkId
-        ) {
-          routesToRip.add(candidate.port.assignment.solvedRoute)
-        }
-      }
     }
 
-    // Check for rips required due to port usage (crossing assignments)
-    for (const candidate of solvedRoute.path) {
-      if (!candidate.lastPort || !candidate.lastRegion) continue
-      const ripsRequired = this.getRipsRequiredForPortUsage(
-        candidate.lastRegion as RegionType,
-        candidate.lastPort as RegionPortType,
-        candidate.port as RegionPortType,
-      )
-      for (const assignment of ripsRequired) {
-        routesToRip.add(assignment.solvedRoute)
-      }
-    }
+    const allRoutesToRip = this.computeRoutesToRip(solvedRoute)
 
-    // Perform the ripping
-    if (routesToRip.size > 0) {
+    // Rip conflicting routes before committing assignments.
+    if (allRoutesToRip.size > 0) {
       solvedRoute.requiredRip = true
-      for (const route of routesToRip) {
+      for (const route of allRoutesToRip) {
         this.ripSolvedRoute(route)
       }
     }
