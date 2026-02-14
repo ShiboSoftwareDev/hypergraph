@@ -1,0 +1,106 @@
+{
+  "Net6": [
+    {
+      "viaId": "08acd0fb-acb7-433e-bd79-eb95b8bb36e5",
+      "diameter": 0.6,
+      "position": {
+        "x": 1.603744,
+        "y": 1.10614
+      }
+    },
+    {
+      "viaId": "c90feeaa-0ca4-4316-a247-d3327435ad2c",
+      "diameter": 0.6,
+      "position": {
+        "x": -0.896256,
+        "y": -1.563588
+      }
+    },
+    {
+      "viaId": "edcb6954-55c5-4245-96cc-31ffe32e4383",
+      "diameter": 0.6,
+      "position": {
+        "x": -0.401539,
+        "y": 1.204572
+      }
+    }
+  ],
+  "Net5": [
+    {
+      "viaId": "144a8120-7291-41f1-a5af-f01f1695bc35",
+      "diameter": 0.6,
+      "position": {
+        "x": 0.685036,
+        "y": -0.756377
+      }
+    },
+    {
+      "viaId": "5124c600-bee6-4723-bf8f-f5fc33c6b1fe",
+      "diameter": 0.6,
+      "position": {
+        "x": 0.21437,
+        "y": 0.054572
+      }
+    },
+    {
+      "viaId": "ae19facc-8153-4e99-b9ac-f76587fc4aa2",
+      "diameter": 0.6,
+      "position": {
+        "x": -0.948605,
+        "y": -0.361654
+      }
+    }
+  ],
+  "Net7": [
+    {
+      "viaId": "9a45d334-d847-4913-bb23-fab54fa8ceaf",
+      "diameter": 0.6,
+      "position": {
+        "x": -0.937997,
+        "y": 0.438278
+      }
+    },
+    {
+      "viaId": "b0990926-74dd-4bf1-baef-0fdd1f8e9bfb",
+      "diameter": 0.6,
+      "position": {
+        "x": 1.439126,
+        "y": -1.360522
+      }
+    },
+    {
+      "viaId": "d8879d15-a541-44fd-b74e-d2f7fc4bb043",
+      "diameter": 0.6,
+      "position": {
+        "x": 0.794933,
+        "y": 1.146947
+      }
+    }
+  ],
+  "Net8": [
+    {
+      "viaId": "4e21ece0-89aa-490f-906d-ad39f889ddd9",
+      "diameter": 0.6,
+      "position": {
+        "x": -0.04755,
+        "y": -1.077815
+      }
+    },
+    {
+      "viaId": "b8b45bd4-9172-4582-bffb-c75b09cf6077",
+      "diameter": 0.6,
+      "position": {
+        "x": 1.620435,
+        "y": 0.306312
+      }
+    },
+    {
+      "viaId": "c53ce343-5e4b-4aba-a33b-70810b2cd62f",
+      "diameter": 0.6,
+      "position": {
+        "x": -1.201542,
+        "y": 1.204572
+      }
+    }
+  ]
+}

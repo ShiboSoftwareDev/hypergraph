@@ -9,6 +9,7 @@ export interface JRegion extends Region {
     isPad: boolean
     isThroughJumper?: boolean
     isConnectionRegion?: boolean
+    isViaRegion?: boolean
   }
 }
 export interface JPort extends RegionPort {
