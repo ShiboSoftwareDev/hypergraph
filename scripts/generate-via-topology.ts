@@ -56,5 +56,6 @@ for (const [netName, vias] of Object.entries(viasByNet)) {
   }
 }
 
-fs.writeFileSync("via-topology.svg", getSvgFromGraphicsObject(graphics))
-console.log("Written via-topology.svg")
+const outputPath = "assets/ViaGraphSolver/via-topology.svg"
+fs.writeFileSync(outputPath, getSvgFromGraphicsObject(graphics))
+console.log(`Written ${outputPath}`)
