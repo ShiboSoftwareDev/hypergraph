@@ -218,7 +218,10 @@ const dataset: DatasetSample[] = JSON.parse(
 )
 
 // Load vias-by-net
-const viasByNetPath = path.join(__dirname, "../vias-by-net.json")
+const viasByNetPath = path.join(
+  __dirname,
+  "../assets/ViaGraphSolver/vias-by-net.json",
+)
 const viasByNet: ViasByNet = JSON.parse(fs.readFileSync(viasByNetPath, "utf8"))
 
 // Apply sample limit
