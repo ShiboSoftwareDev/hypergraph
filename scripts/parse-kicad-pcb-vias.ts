@@ -93,7 +93,8 @@ function parseVia(
 
 async function main() {
   const inputPath = process.argv[2]
-  const outputPath = process.argv[3] ?? "vias-by-net.json"
+  const outputPath =
+    process.argv[3] ?? path.join("assets", "ViaGraphSolver", "vias-by-net.json")
 
   if (!inputPath) {
     console.error(
