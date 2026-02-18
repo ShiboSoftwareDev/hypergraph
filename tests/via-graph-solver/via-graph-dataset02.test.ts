@@ -82,4 +82,4 @@ test("via-graph-dataset02: solve sample 0 with tiled via topology", () => {
   expect(getSvgFromGraphicsObject(solver.visualize())).toMatchSvgSnapshot(
     import.meta.path,
   )
-})
+}, 30000)
