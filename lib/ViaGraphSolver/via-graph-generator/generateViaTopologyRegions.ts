@@ -6,7 +6,7 @@ type ViaData = {
   position: { x: number; y: number }
 }
 
-type ViasByNet = Record<string, ViaData[]>
+import type { ViasByNet } from "../ViaGraphSolver"
 
 type HorizontalSegment = { xStart: number; xEnd: number; y: number }
 type VerticalSegment = { x: number; yStart: number; yEnd: number }
