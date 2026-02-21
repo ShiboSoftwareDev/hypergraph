@@ -2,15 +2,15 @@ import fs from "node:fs"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
 import { visualizeJumperGraph } from "../lib/JumperGraphSolver/visualizeJumperGraph"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 
-const topology = generateViaTopologyRegions(viasByNet, {
+const topology = generateViaTopologyRegions(viaTile, {
   graphSize: 5,
   idPrefix: "via",
 })
 
 // Assign a distinct color to each net
-const netNames = Object.keys(viasByNet)
+const netNames = Object.keys(viaTile.viasByNet)
 const netColors: Record<string, string> = {}
 const colorPalette = [
   "rgba(231, 76, 60, 0.35)", // red
@@ -45,7 +45,7 @@ for (let i = 0; i < topology.regions.length; i++) {
 }
 
 // Overlay via circles with matching net colors
-for (const [netName, vias] of Object.entries(viasByNet)) {
+for (const [netName, vias] of Object.entries(viaTile.viasByNet)) {
   for (const via of vias) {
     graphics.circles!.push({
       center: via.position,

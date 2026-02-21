@@ -30,8 +30,18 @@ export type ViaData = {
   diameter: number
   position: { x: number; y: number }
 }
-
-export type ViasByNet = Record<string, ViaData[]>
+export type RouteSegment = {
+  routeId: string
+  fromPort: ViaData["viaId"]
+  toPort: ViaData["viaId"]
+  layer: string
+  segments: Array<{ x: number; y: number }>
+}
+export type ViaByNet = Record<string, ViaData[]>
+export type ViaTile = {
+  viasByNet: ViaByNet
+  routeSegments: RouteSegment[]
+}
 
 export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   override getSolverName(): string {
@@ -40,7 +50,7 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
 
   UNIT_OF_COST = "hops"
 
-  viasByNet?: ViasByNet
+  viaTile?: ViaTile
 
   portUsagePenalty = VIA_GRAPH_SOLVER_DEFAULTS.portUsagePenalty
   portUsagePenaltySq = VIA_GRAPH_SOLVER_DEFAULTS.portUsagePenaltySq
@@ -54,7 +64,7 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   constructor(input: {
     inputGraph: HyperGraph | SerializedHyperGraph
     inputConnections: (Connection | SerializedConnection)[]
-    viasByNet?: ViasByNet
+    viaTile?: ViaTile
     ripCost?: number
     portUsagePenalty?: number
     crossingPenalty?: number
@@ -66,7 +76,7 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
       rippingEnabled: true,
       ...input,
     })
-    this.viasByNet = input.viasByNet
+    this.viaTile = input.viaTile
     this.ripCost = input.ripCost ?? this.ripCost
     this.portUsagePenalty = input.portUsagePenalty ?? this.portUsagePenalty
     this.crossingPenalty = input.crossingPenalty ?? this.crossingPenalty

@@ -5,13 +5,13 @@ import type {
   JumperGraph,
 } from "../../JumperGraphSolver/jumper-types"
 import type { Connection } from "../../types"
-import type { ViasByNet } from "../ViaGraphSolver"
+import type { ViaTile } from "../ViaGraphSolver"
 import { createViaGraphWithConnections } from "./createViaGraphWithConnections"
 import { generateViaTopologyGrid } from "./generateViaTopologyGrid"
 
 export type ViaGraphFromXYConnectionsResult = JumperGraph & {
   connections: Connection[]
-  tiledViasByNet: ViasByNet
+  viaTile: ViaTile
   tileCount: { rows: number; cols: number }
 }
 
@@ -55,12 +55,12 @@ function calculateBoundsFromConnections(xyConnections: XYConnection[]): {
  * 4. Attaches connection regions to the graph
  *
  * @param xyConnections - Array of connections with start/end XY coordinates
- * @param viasByNet - Via positions grouped by net name
+ * @param viaTile - Via tile data (vias grouped by net plus route segments)
  * @param opts - Optional configuration (tileSize defaults to 5mm, portPitch to 0.4mm)
  */
 export function createViaGraphFromXYConnections(
   xyConnections: XYConnection[],
-  viasByNet: ViasByNet,
+  viaTile: ViaTile,
   opts?: {
     tileSize?: number
     portPitch?: number
@@ -70,14 +70,17 @@ export function createViaGraphFromXYConnections(
   const bounds = calculateBoundsFromConnections(xyConnections)
 
   // Generate the tiled via topology grid
-  const { regions, ports, tiledViasByNet, tileCount } = generateViaTopologyGrid(
-    {
-      viasByNet,
-      bounds,
-      tileSize: opts?.tileSize,
-      portPitch: opts?.portPitch,
-    },
-  )
+  const {
+    regions,
+    ports,
+    viaTile: generatedViaTile,
+    tileCount,
+  } = generateViaTopologyGrid({
+    viaTile,
+    bounds,
+    tileSize: opts?.tileSize,
+    portPitch: opts?.portPitch,
+  })
 
   // Create base graph from tiled regions
   const baseGraph: JumperGraph = { regions, ports }
@@ -90,7 +93,7 @@ export function createViaGraphFromXYConnections(
 
   return {
     ...graphWithConnections,
-    tiledViasByNet,
+    viaTile: generatedViaTile,
     tileCount,
   }
 }

@@ -7,10 +7,11 @@ import type {
   JumperGraph,
 } from "lib/JumperGraphSolver/jumper-types"
 import type { Connection } from "lib/types"
+import type { ViaByNet, ViaTile } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { findBoundaryRegionForPolygons } from "lib/ViaGraphSolver/via-graph-generator/findBoundaryRegionForPolygons"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 
 // ── Configuration ──────────────────────────────────────────────────────
 const TILE_SIZE = 5
@@ -105,7 +106,7 @@ function createBoundaryPorts(
 }
 
 // ── Step 1: Generate the base via topology (centered at origin) ────────
-const baseGraph = generateViaTopologyRegions(viasByNet, {
+const baseGraph = generateViaTopologyRegions(viaTile, {
   graphSize: TILE_SIZE,
   idPrefix: "v",
 })
@@ -495,16 +496,12 @@ for (const xyConn of connections) {
   })
 }
 
-// ── Step 6: Build tiledViasByNet with via positions for every tile ──────
-// The visualizer draws via circles from viasByNet positions directly.
+// ── Step 6: Build expanded vias with positions for every tile ──────
+// The visualizer draws via circles from viaTile positions directly.
 // The original data is centered at the origin, so we duplicate each via
 // for every tile offset so circles appear in all 16 tiles.
-const tiledViasByNet: Record<
-  string,
-  { viaId: string; diameter: number; position: { x: number; y: number } }[]
-> = {}
-
-for (const [netName, vias] of Object.entries(viasByNet)) {
+const expandedViasByNet: ViaByNet = {}
+for (const [netName, vias] of Object.entries(viaTile.viasByNet)) {
   const allVias: {
     viaId: string
     diameter: number
@@ -526,7 +523,7 @@ for (const [netName, vias] of Object.entries(viasByNet)) {
       }
     }
   }
-  tiledViasByNet[netName] = allVias
+  expandedViasByNet[netName] = allVias
 }
 
 // ── Render ──────────────────────────────────────────────────────────────
@@ -539,7 +536,10 @@ export default () => (
           ports: allPorts,
         },
         inputConnections: allConnections,
-        viasByNet: tiledViasByNet,
+        viaTile: {
+          viasByNet: expandedViasByNet,
+          routeSegments: [],
+        } as ViaTile,
       })
     }
   />

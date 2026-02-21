@@ -6,7 +6,7 @@ type ViaData = {
   position: { x: number; y: number }
 }
 
-import type { ViasByNet } from "../ViaGraphSolver"
+import type { ViaTile } from "../ViaGraphSolver"
 
 type HorizontalSegment = { xStart: number; xEnd: number; y: number }
 type VerticalSegment = { x: number; yStart: number; yEnd: number }
@@ -27,9 +27,10 @@ const TRACE_PITCH = 0.4
  * edge is the graph boundary.
  */
 export const generateViaTopologyRegions = (
-  viasByNet: ViasByNet,
+  viaTile: ViaTile,
   opts?: { graphSize?: number; idPrefix?: string },
 ): { regions: JRegion[]; ports: JPort[] } => {
+  const viasByNet = viaTile.viasByNet
   const graphSize = opts?.graphSize ?? 5
   const idPrefix = opts?.idPrefix ?? "via"
   const half = graphSize / 2

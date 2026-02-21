@@ -51,11 +51,6 @@ type DatasetSample = {
   }[]
 }
 
-type ViasByNet = Record<
-  string,
-  { viaId: string; diameter: number; position: { x: number; y: number } }[]
->
-
 const median = (numbers: number[]): number | undefined => {
   if (numbers.length === 0) return undefined
   const sorted = numbers.slice().sort((a, b) => a - b)
@@ -126,7 +121,7 @@ const tryToSolve = (
         ports: result.ports,
       },
       inputConnections: result.connections,
-      viasByNet: result.tiledViasByNet,
+      viaTile: result.viaTile,
     }
 
     if (quickMode) {

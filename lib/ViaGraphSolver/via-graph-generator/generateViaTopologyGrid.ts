@@ -3,7 +3,7 @@ import type {
   JRegion,
   JumperGraph,
 } from "../../JumperGraphSolver/jumper-types"
-import type { ViasByNet } from "../ViaGraphSolver"
+import type { RouteSegment, ViaTile } from "../ViaGraphSolver"
 import { generateViaTopologyRegions } from "./generateViaTopologyRegions"
 
 /**
@@ -68,6 +68,24 @@ function translateGraph(
   })
 
   return { regions, ports }
+}
+
+function translateRouteSegments(
+  routeSegments: RouteSegment[],
+  dx: number,
+  dy: number,
+  prefix: string,
+): RouteSegment[] {
+  return routeSegments.map((segment) => ({
+    routeId: `${prefix}:${segment.routeId}`,
+    fromPort: `${prefix}:${segment.fromPort}`,
+    toPort: `${prefix}:${segment.toPort}`,
+    layer: segment.layer,
+    segments: segment.segments.map((point) => ({
+      x: point.x + dx,
+      y: point.y + dy,
+    })),
+  }))
 }
 
 /**
@@ -208,19 +226,20 @@ type EdgeName = "right" | "left" | "top" | "bottom"
  * space between the tiled area and the problem bounds.
  */
 export function generateViaTopologyGrid(opts: {
-  viasByNet: ViasByNet
+  viaTile: ViaTile
   bounds: Bounds
   tileSize?: number
   portPitch?: number
 }): {
   regions: JRegion[]
   ports: JPort[]
-  tiledViasByNet: ViasByNet
+  viaTile: ViaTile
   tileCount: { rows: number; cols: number }
 } {
   const tileSize = opts.tileSize ?? DEFAULT_TILE_SIZE
   const portPitch = opts.portPitch ?? DEFAULT_PORT_PITCH
-  const { bounds, viasByNet } = opts
+  const { bounds, viaTile: inputViaTile } = opts
+  const { viasByNet, routeSegments } = inputViaTile
 
   const width = bounds.maxX - bounds.minX
   const height = bounds.maxY - bounds.minY
@@ -230,7 +249,7 @@ export function generateViaTopologyGrid(opts: {
 
   const allRegions: JRegion[] = []
   const allPorts: JPort[] = []
-  const tiledViasByNet: ViasByNet = {}
+  const viaTile: ViaTile = { viasByNet: {}, routeSegments: [] }
 
   // Calculate tile grid position (centered within bounds)
   const gridWidth = cols * tileSize
@@ -245,7 +264,7 @@ export function generateViaTopologyGrid(opts: {
 
   if (rows > 0 && cols > 0) {
     // Generate base via topology (centered at origin)
-    const baseGraph = generateViaTopologyRegions(viasByNet, {
+    const baseGraph = generateViaTopologyRegions(inputViaTile, {
       graphSize: tileSize,
       idPrefix: "v",
     })
@@ -282,11 +301,13 @@ export function generateViaTopologyGrid(opts: {
         allRegions.push(...tile.regions)
         allPorts.push(...tile.ports)
 
-        // Add translated vias to tiledViasByNet
+        // Add translated vias to viaTile output
         for (const [netName, vias] of Object.entries(viasByNet)) {
-          if (!tiledViasByNet[netName]) tiledViasByNet[netName] = []
+          if (!viaTile.viasByNet[netName]) {
+            viaTile.viasByNet[netName] = []
+          }
           for (const via of vias) {
-            tiledViasByNet[netName].push({
+            viaTile.viasByNet[netName].push({
               viaId: `${prefix}:${via.viaId}`,
               diameter: via.diameter,
               position: {
@@ -296,6 +317,15 @@ export function generateViaTopologyGrid(opts: {
             })
           }
         }
+
+        viaTile.routeSegments.push(
+          ...translateRouteSegments(
+            routeSegments,
+            tileCenterX,
+            tileCenterY,
+            prefix,
+          ),
+        )
       }
     }
 
@@ -566,7 +596,7 @@ export function generateViaTopologyGrid(opts: {
         const tileT = findRegionBySuffix(tile, "v:T")
 
         // Find where the tile's T region touches its top boundary
-        const baseT = generateViaTopologyRegions(viasByNet, {
+        const baseT = generateViaTopologyRegions(inputViaTile, {
           graphSize: tileSize,
           idPrefix: "v",
         }).regions.find((r) => r.regionId === "v:T")!
@@ -596,7 +626,7 @@ export function generateViaTopologyGrid(opts: {
         const tile = tileGraphs[0][col]
         const tileB = findRegionBySuffix(tile, "v:B")
 
-        const baseB = generateViaTopologyRegions(viasByNet, {
+        const baseB = generateViaTopologyRegions(inputViaTile, {
           graphSize: tileSize,
           idPrefix: "v",
         }).regions.find((r) => r.regionId === "v:B")!
@@ -630,7 +660,7 @@ export function generateViaTopologyGrid(opts: {
         const tile = tileGraphs[row][0]
         const tileL = findRegionBySuffix(tile, "v:L")
 
-        const baseL = generateViaTopologyRegions(viasByNet, {
+        const baseL = generateViaTopologyRegions(inputViaTile, {
           graphSize: tileSize,
           idPrefix: "v",
         }).regions.find((r) => r.regionId === "v:L")!
@@ -660,7 +690,7 @@ export function generateViaTopologyGrid(opts: {
         const tile = tileGraphs[row][cols - 1]
         const tileR = findRegionBySuffix(tile, "v:R")
 
-        const baseR = generateViaTopologyRegions(viasByNet, {
+        const baseR = generateViaTopologyRegions(inputViaTile, {
           graphSize: tileSize,
           idPrefix: "v",
         }).regions.find((r) => r.regionId === "v:R")!
@@ -687,7 +717,7 @@ export function generateViaTopologyGrid(opts: {
     // Connect outer left to left column tiles' T and B regions (corner connections)
     // These T/B regions extend to the left grid boundary and should connect to outer:L
     if (outerLeft) {
-      const baseGraph = generateViaTopologyRegions(viasByNet, {
+      const baseGraph = generateViaTopologyRegions(inputViaTile, {
         graphSize: tileSize,
         idPrefix: "v",
       })
@@ -740,7 +770,7 @@ export function generateViaTopologyGrid(opts: {
     // Connect outer right to right column tiles' T and B regions (corner connections)
     // These T/B regions extend to the right grid boundary and should connect to outer:R
     if (outerRight) {
-      const baseGraph = generateViaTopologyRegions(viasByNet, {
+      const baseGraph = generateViaTopologyRegions(inputViaTile, {
         graphSize: tileSize,
         idPrefix: "v",
       })
@@ -806,7 +836,7 @@ export function generateViaTopologyGrid(opts: {
   return {
     regions: allRegions,
     ports: allPorts,
-    tiledViasByNet,
+    viaTile,
     tileCount: { rows, cols },
   }
 }

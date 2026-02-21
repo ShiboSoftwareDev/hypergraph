@@ -3,10 +3,10 @@ import { getSvgFromGraphicsObject } from "graphics-debug"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphWithConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphWithConnections"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 
 test("via-graph-solver02: solve via topology with 4 connections", () => {
-  const baseGraph = generateViaTopologyRegions(viasByNet, {
+  const baseGraph = generateViaTopologyRegions(viaTile, {
     graphSize: 5,
     idPrefix: "via",
   })
@@ -41,7 +41,7 @@ test("via-graph-solver02: solve via topology with 4 connections", () => {
       ports: graphWithConnections.ports,
     },
     inputConnections: graphWithConnections.connections,
-    viasByNet,
+    viaTile,
   })
 
   solver.solve()

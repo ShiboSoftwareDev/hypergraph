@@ -11,6 +11,7 @@ import { cpus } from "os"
 import * as path from "path"
 import { fileURLToPath } from "url"
 import { Worker } from "worker_threads"
+import type { ViaTile } from "../lib/ViaGraphSolver/ViaGraphSolver"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -70,11 +71,6 @@ type DatasetSample = {
   }[]
 }
 
-type ViasByNet = Record<
-  string,
-  { viaId: string; diameter: number; position: { x: number; y: number } }[]
->
-
 type BenchmarkResult = {
   sampleIndex: number
   numCrossings: number
@@ -115,7 +111,7 @@ const workerCode = `
 const { parentPort, workerData } = require('worker_threads');
 const { ViaGraphSolver, createViaGraphFromXYConnections } = require(workerData.distPath);
 
-const { sample, sampleIndex, viasByNet, quickMode } = workerData;
+const { sample, sampleIndex, viaTile, quickMode } = workerData;
 
 function extractXYConnections(sample) {
   const regionMap = new Map(
@@ -143,7 +139,7 @@ function extractXYConnections(sample) {
 function solveSample() {
   try {
     const xyConnections = extractXYConnections(sample);
-    const result = createViaGraphFromXYConnections(xyConnections, viasByNet);
+    const result = createViaGraphFromXYConnections(xyConnections, viaTile);
 
     const solverOpts = {
       inputGraph: {
@@ -151,7 +147,7 @@ function solveSample() {
         ports: result.ports,
       },
       inputConnections: result.connections,
-      viasByNet: result.tiledViasByNet,
+      viaTile: result.viaTile,
     };
 
     if (quickMode) {
@@ -207,7 +203,7 @@ parentPort.postMessage(result);
 function runSampleInWorker(
   sampleIndex: number,
   sample: DatasetSample,
-  viasByNet: ViasByNet,
+  viaTile: ViaTile,
   quickMode: boolean,
   distPath: string,
 ): Promise<BenchmarkResult> {
@@ -217,7 +213,7 @@ function runSampleInWorker(
       workerData: {
         sample,
         sampleIndex,
-        viasByNet,
+        viaTile,
         quickMode,
         distPath,
       },
@@ -272,7 +268,7 @@ function runSampleInWorker(
  */
 async function runParallelBenchmark(
   samples: DatasetSample[],
-  viasByNet: ViasByNet,
+  viaTile: ViaTile,
   concurrency: number,
   quickMode: boolean,
   distPath: string,
@@ -290,7 +286,7 @@ async function runParallelBenchmark(
       const result = await runSampleInWorker(
         currentIndex,
         sample,
-        viasByNet,
+        viaTile,
         quickMode,
         distPath,
       )
@@ -322,11 +318,11 @@ const dataset: DatasetSample[] = JSON.parse(
 )
 
 // Load vias-by-net
-const viasByNetPath = path.join(
+const viaTilePath = path.join(
   __dirname,
-  "../assets/ViaGraphSolver/vias-by-net.json",
+  "../assets/ViaGraphSolver/via-tile.json",
 )
-const viasByNet: ViasByNet = JSON.parse(fs.readFileSync(viasByNetPath, "utf8"))
+const viaTile: ViaTile = JSON.parse(fs.readFileSync(viaTilePath, "utf8"))
 
 // Path to built dist
 const distPath = path.join(__dirname, "../dist/index.js")
@@ -346,7 +342,7 @@ const totalSamples = samplesToRun.length
 console.log("Benchmark: ViaGraphSolver with Dataset02 (Parallel - Node.js)")
 console.log("=".repeat(70))
 console.log(`Loaded ${dataset.length} samples from dataset02`)
-console.log(`Via topology loaded from vias-by-net.json`)
+console.log(`Via topology loaded from via-tile.json`)
 console.log(`Concurrency: ${CONCURRENCY} workers`)
 if (SAMPLE_LIMIT) {
   console.log(`Sample limit: ${SAMPLE_LIMIT}`)
@@ -379,7 +375,7 @@ const printProgress = (completed: number, results: BenchmarkResult[]) => {
 // Run the benchmark
 runParallelBenchmark(
   samplesToRun,
-  viasByNet,
+  viaTile,
   CONCURRENCY,
   QUICK_MODE,
   distPath,

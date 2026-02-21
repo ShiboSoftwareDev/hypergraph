@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import type { XYConnection } from "../lib/JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import { ViaGraphSolver } from "../lib/ViaGraphSolver/ViaGraphSolver"
+import type { ViaTile } from "../lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphFromXYConnections } from "../lib/ViaGraphSolver/via-graph-generator/createViaGraphFromXYConnections"
 
 // Parse command line arguments
@@ -52,11 +53,6 @@ type DatasetSample = {
     }
   }[]
 }
-
-type ViasByNet = Record<
-  string,
-  { viaId: string; diameter: number; position: { x: number; y: number } }[]
->
 
 const median = (numbers: number[]): number | undefined => {
   if (numbers.length === 0) return undefined
@@ -109,7 +105,7 @@ const extractXYConnections = (sample: DatasetSample): XYConnection[] => {
  */
 const tryToSolve = (
   xyConnections: XYConnection[],
-  viasByNet: ViasByNet,
+  viaTile: ViaTile,
   quickMode: boolean,
 ): {
   solved: boolean
@@ -121,7 +117,7 @@ const tryToSolve = (
   error?: string
 } => {
   try {
-    const result = createViaGraphFromXYConnections(xyConnections, viasByNet)
+    const result = createViaGraphFromXYConnections(xyConnections, viaTile)
 
     const solverOpts: ConstructorParameters<typeof ViaGraphSolver>[0] = {
       inputGraph: {
@@ -129,7 +125,7 @@ const tryToSolve = (
         ports: result.ports,
       },
       inputConnections: result.connections,
-      viasByNet: result.tiledViasByNet,
+      viaTile: result.viaTile,
     }
 
     // In quick mode, reduce max iterations for faster benchmarking
@@ -174,16 +170,16 @@ const dataset: DatasetSample[] = JSON.parse(
 )
 
 // Load vias-by-net
-const viasByNetPath = path.join(
+const viaTilePath = path.join(
   __dirname,
-  "../assets/ViaGraphSolver/vias-by-net.json",
+  "../assets/ViaGraphSolver/via-tile.json",
 )
-const viasByNet: ViasByNet = JSON.parse(fs.readFileSync(viasByNetPath, "utf8"))
+const viaTile: ViaTile = JSON.parse(fs.readFileSync(viaTilePath, "utf8"))
 
 console.log("Benchmark: ViaGraphSolver with Dataset02")
 console.log("=".repeat(70))
 console.log(`Loaded ${dataset.length} samples from dataset02`)
-console.log(`Via topology loaded from vias-by-net.json`)
+console.log(`Via topology loaded from via-tile.json`)
 if (SAMPLE_LIMIT) {
   console.log(`Sample limit: ${SAMPLE_LIMIT}`)
 }
@@ -240,7 +236,7 @@ for (let i = 0; i < totalSamples; i++) {
     lastProgressTime = now
   }
 
-  const result = tryToSolve(xyConnections, viasByNet, QUICK_MODE)
+  const result = tryToSolve(xyConnections, viaTile, QUICK_MODE)
 
   results.push({
     sampleIndex: i,

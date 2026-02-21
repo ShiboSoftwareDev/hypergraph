@@ -1,5 +1,5 @@
 import { GenericSolverDebugger } from "@tscircuit/solver-utils/react"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 import type { XYConnection } from "lib/JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createConvexViaGraphFromXYConnections } from "lib/ViaGraphSolver/via-graph-generator/createConvexViaGraphFromXYConnections"
@@ -66,16 +66,13 @@ export default () => {
     if (!entry) return null
 
     const xyConnections = extractXYConnections(entry)
-    const result = createConvexViaGraphFromXYConnections(
-      xyConnections,
-      viasByNet,
-    )
+    const result = createConvexViaGraphFromXYConnections(xyConnections, viaTile)
 
     return {
       graph: result,
       connections: result.connections,
       tileCount: result.tileCount,
-      tiledViasByNet: result.tiledViasByNet,
+      viaTile: result.viaTile,
     }
   }, [selectedIndex])
 
@@ -183,7 +180,7 @@ export default () => {
                 ports: problem.graph.ports,
               },
               inputConnections: problem.connections,
-              viasByNet: problem.tiledViasByNet,
+              viaTile: problem.viaTile,
             })
           }
         />
