@@ -4,7 +4,7 @@ import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphFromXYConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphFromXYConnections"
 import { useMemo, useState } from "react"
 import dataset from "../../datasets/jumper-graph-solver/dataset02.json"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 
 interface DatasetSample {
   config: {
@@ -66,13 +66,13 @@ export default () => {
     if (!entry) return null
 
     const xyConnections = extractXYConnections(entry)
-    const result = createViaGraphFromXYConnections(xyConnections, viasByNet)
+    const result = createViaGraphFromXYConnections(xyConnections, viaTile)
 
     return {
       graph: result,
       connections: result.connections,
       tileCount: result.tileCount,
-      tiledViasByNet: result.tiledViasByNet,
+      viaTile: result.viaTile,
     }
   }, [selectedIndex])
 
@@ -166,7 +166,7 @@ export default () => {
                 ports: problem.graph.ports,
               },
               inputConnections: problem.connections,
-              viasByNet: problem.tiledViasByNet,
+              viaTile: problem.viaTile,
             })
           }
         />

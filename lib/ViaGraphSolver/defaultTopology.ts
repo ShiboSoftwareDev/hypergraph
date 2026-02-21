@@ -1,21 +1,21 @@
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
-import type { ViasByNet } from "./ViaGraphSolver"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
+import type { ViaTile } from "./ViaGraphSolver"
 import { generateViaTopologyGrid } from "./via-graph-generator/generateViaTopologyGrid"
 import { generateViaTopologyRegions } from "./via-graph-generator/generateViaTopologyRegions"
 
-export { viasByNet }
+export { viaTile }
 
 export function generateDefaultViaTopologyRegions(
   opts: Parameters<typeof generateViaTopologyRegions>[1],
 ) {
-  return generateViaTopologyRegions(viasByNet as ViasByNet, opts)
+  return generateViaTopologyRegions(viaTile as ViaTile, opts)
 }
 
 export function generateDefaultViaTopologyGrid(
-  opts: Omit<Parameters<typeof generateViaTopologyGrid>[0], "viasByNet">,
+  opts: Omit<Parameters<typeof generateViaTopologyGrid>[0], "viaTile">,
 ) {
   return generateViaTopologyGrid({
     ...opts,
-    viasByNet: viasByNet as ViasByNet,
+    viaTile: viaTile as ViaTile,
   })
 }

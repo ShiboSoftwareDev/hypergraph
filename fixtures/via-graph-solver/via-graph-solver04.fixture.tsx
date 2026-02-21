@@ -2,9 +2,9 @@ import { GenericSolverDebugger } from "@tscircuit/solver-utils/react"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphWithConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphWithConnections"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 
-const baseGraph = generateViaTopologyRegions(viasByNet, {
+const baseGraph = generateViaTopologyRegions(viaTile, {
   graphSize: 5,
   idPrefix: "via",
 })
@@ -41,7 +41,7 @@ export default () => (
           ports: graphWithConnections.ports,
         },
         inputConnections: graphWithConnections.connections,
-        viasByNet,
+        viaTile,
       })
     }
   />

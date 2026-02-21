@@ -186,9 +186,9 @@ export const visualizeViaGraphSolver = (
   }
 
   // Draw via circles for context
-  if (solver.viasByNet) {
+  if (solver.viaTile) {
     if (!graphics.circles) graphics.circles = []
-    for (const [netName, vias] of Object.entries(solver.viasByNet)) {
+    for (const [netName, vias] of Object.entries(solver.viaTile.viasByNet)) {
       const netColor = netColorMap.get(netName)
       const viaFill = netColor
         ? netColor.replace("0.35", "0.5")

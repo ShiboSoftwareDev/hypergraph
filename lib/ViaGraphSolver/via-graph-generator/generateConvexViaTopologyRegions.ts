@@ -4,7 +4,7 @@ import type {
   JRegion,
   JumperGraph,
 } from "../../JumperGraphSolver/jumper-types"
-import type { ViasByNet } from "../ViaGraphSolver"
+import type { RouteSegment, ViaTile } from "../ViaGraphSolver"
 import { createPortsAlongEdge, findSharedEdges } from "./findSharedEdges"
 
 /**
@@ -195,6 +195,24 @@ function translateVias(
   }))
 }
 
+function translateRouteSegments(
+  routeSegments: RouteSegment[],
+  dx: number,
+  dy: number,
+  prefix: string,
+): RouteSegment[] {
+  return routeSegments.map((segment) => ({
+    routeId: `${prefix}:${segment.routeId}`,
+    fromPort: `${prefix}:${segment.fromPort}`,
+    toPort: `${prefix}:${segment.toPort}`,
+    layer: segment.layer,
+    segments: segment.segments.map((point) => ({
+      x: point.x + dx,
+      y: point.y + dy,
+    })),
+  }))
+}
+
 /**
  * Generates a via topology using convex regions computed by ConvexRegionsSolver.
  *
@@ -204,7 +222,7 @@ function translateVias(
  * 4. Ports are created between adjacent convex regions and between convex/via regions
  */
 export function generateConvexViaTopologyRegions(opts: {
-  viasByNet: ViasByNet
+  viaTile: ViaTile
   bounds: Bounds
   tileSize?: number
   portPitch?: number
@@ -213,14 +231,15 @@ export function generateConvexViaTopologyRegions(opts: {
 }): {
   regions: JRegion[]
   ports: JPort[]
-  tiledViasByNet: ViasByNet
+  viaTile: ViaTile
   tileCount: { rows: number; cols: number }
 } {
   const tileSize = opts.tileSize ?? DEFAULT_TILE_SIZE
   const portPitch = opts.portPitch ?? DEFAULT_PORT_PITCH
   const clearance = opts.clearance ?? DEFAULT_CLEARANCE
   const concavityTolerance = opts.concavityTolerance ?? 0
-  const { bounds, viasByNet } = opts
+  const { bounds, viaTile: inputViaTile } = opts
+  const { viasByNet, routeSegments } = inputViaTile
 
   const width = bounds.maxX - bounds.minX
   const height = bounds.maxY - bounds.minY
@@ -230,7 +249,7 @@ export function generateConvexViaTopologyRegions(opts: {
 
   const allRegions: JRegion[] = []
   const allPorts: JPort[] = []
-  const tiledViasByNet: ViasByNet = {}
+  const viaTile: ViaTile = { viasByNet: {}, routeSegments: [] }
   const viaRegions: JRegion[] = []
 
   // Calculate tile grid position (centered within bounds)
@@ -260,9 +279,11 @@ export function generateConvexViaTopologyRegions(opts: {
             prefix,
           )
 
-          // Add to tiledViasByNet
-          if (!tiledViasByNet[netName]) tiledViasByNet[netName] = []
-          tiledViasByNet[netName].push(...translatedVias)
+          // Add to output viaTile
+          if (!viaTile.viasByNet[netName]) {
+            viaTile.viasByNet[netName] = []
+          }
+          viaTile.viasByNet[netName].push(...translatedVias)
 
           // Generate via region polygon
           const polygon = generateViaRegionPolygon(translatedVias)
@@ -276,6 +297,15 @@ export function generateConvexViaTopologyRegions(opts: {
           viaRegions.push(viaRegion)
           allRegions.push(viaRegion)
         }
+
+        viaTile.routeSegments.push(
+          ...translateRouteSegments(
+            routeSegments,
+            tileCenterX,
+            tileCenterY,
+            prefix,
+          ),
+        )
       }
     }
   }
@@ -301,8 +331,9 @@ export function generateConvexViaTopologyRegions(opts: {
   }
 
   // Step 3: Convert solver output to JRegions
-  const convexRegions: JRegion[] = solverOutput.regions.map((polygon, i) =>
-    createRegionFromPolygon(`convex:${i}`, polygon),
+  const convexRegions: JRegion[] = solverOutput.regions.map(
+    (polygon: Point[], i: number) =>
+      createRegionFromPolygon(`convex:${i}`, polygon),
   )
   allRegions.push(...convexRegions)
 
@@ -368,7 +399,7 @@ export function generateConvexViaTopologyRegions(opts: {
   return {
     regions: allRegions,
     ports: allPorts,
-    tiledViasByNet,
+    viaTile,
     tileCount: { rows, cols },
   }
 }

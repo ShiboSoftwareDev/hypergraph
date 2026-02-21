@@ -4,7 +4,7 @@ import type { XYConnection } from "lib/JumperGraphSolver/jumper-graph-generator/
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphFromXYConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphFromXYConnections"
 import dataset from "../../datasets/jumper-graph-solver/dataset02.json"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 
 interface DatasetSample {
   config: {
@@ -60,7 +60,7 @@ test("via-graph-dataset02: solve sample 0 with tiled via topology", () => {
   const sample = typedDataset[0]
   const xyConnections = extractXYConnections(sample)
 
-  const result = createViaGraphFromXYConnections(xyConnections, viasByNet)
+  const result = createViaGraphFromXYConnections(xyConnections, viaTile)
 
   // Verify tiling occurred
   expect(result.tileCount.rows).toBeGreaterThanOrEqual(0)
@@ -72,7 +72,7 @@ test("via-graph-dataset02: solve sample 0 with tiled via topology", () => {
       ports: result.ports,
     },
     inputConnections: result.connections,
-    viasByNet: result.tiledViasByNet,
+    viaTile: result.viaTile,
   })
 
   solver.solve()

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import viasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import viaTile from "assets/ViaGraphSolver/via-tile.json"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import type { XYConnection } from "lib/JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
@@ -60,7 +60,7 @@ test("via-graph-convex-dataset02: solve sample 0 with convex regions", () => {
   const sample = typedDataset[0]
   const xyConnections = extractXYConnections(sample)
 
-  const result = createConvexViaGraphFromXYConnections(xyConnections, viasByNet)
+  const result = createConvexViaGraphFromXYConnections(xyConnections, viaTile)
 
   // Verify tiling occurred
   expect(result.tileCount.rows).toBeGreaterThanOrEqual(0)
@@ -82,7 +82,7 @@ test("via-graph-convex-dataset02: solve sample 0 with convex regions", () => {
       ports: result.ports,
     },
     inputConnections: result.connections,
-    viasByNet: result.tiledViasByNet,
+    viaTile: result.viaTile,
   })
 
   solver.solve()

@@ -1,14 +1,14 @@
-import defaultViasByNet from "assets/ViaGraphSolver/vias-by-net.json"
+import defaultViaTile from "assets/ViaGraphSolver/via-tile.json"
 import type { XYConnection } from "../../JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import type { JumperGraph } from "../../JumperGraphSolver/jumper-types"
 import type { Connection } from "../../types"
-import type { ViasByNet } from "../ViaGraphSolver"
+import type { ViaTile } from "../ViaGraphSolver"
 import { createViaGraphWithConnections } from "./createViaGraphWithConnections"
 import { generateConvexViaTopologyRegions } from "./generateConvexViaTopologyRegions"
 
 export type ConvexViaGraphFromXYConnectionsResult = JumperGraph & {
   connections: Connection[]
-  tiledViasByNet: ViasByNet
+  viaTile: ViaTile
   tileCount: { rows: number; cols: number }
 }
 
@@ -55,12 +55,12 @@ function calculateBoundsFromConnections(xyConnections: XYConnection[]): {
  * 5. Attaches connection regions to the graph
  *
  * @param xyConnections - Array of connections with start/end XY coordinates
- * @param viasByNet - Via positions grouped by net name (defaults to built-in vias-by-net.json)
+ * @param viaTile - Via tile data (defaults to built-in via-tile.json)
  * @param opts - Optional configuration
  */
 export function createConvexViaGraphFromXYConnections(
   xyConnections: XYConnection[],
-  viasByNet: ViasByNet = defaultViasByNet as ViasByNet,
+  viaTile: ViaTile = defaultViaTile as ViaTile,
   opts?: {
     tileSize?: number
     portPitch?: number
@@ -72,15 +72,19 @@ export function createConvexViaGraphFromXYConnections(
   const bounds = calculateBoundsFromConnections(xyConnections)
 
   // Generate the via topology with convex regions
-  const { regions, ports, tiledViasByNet, tileCount } =
-    generateConvexViaTopologyRegions({
-      viasByNet,
-      bounds,
-      tileSize: opts?.tileSize,
-      portPitch: opts?.portPitch,
-      clearance: opts?.clearance,
-      concavityTolerance: opts?.concavityTolerance,
-    })
+  const {
+    regions,
+    ports,
+    viaTile: generatedViaTile,
+    tileCount,
+  } = generateConvexViaTopologyRegions({
+    viaTile,
+    bounds,
+    tileSize: opts?.tileSize,
+    portPitch: opts?.portPitch,
+    clearance: opts?.clearance,
+    concavityTolerance: opts?.concavityTolerance,
+  })
 
   // Create base graph from regions
   const baseGraph: JumperGraph = { regions, ports }
@@ -93,7 +97,7 @@ export function createConvexViaGraphFromXYConnections(
 
   return {
     ...graphWithConnections,
-    tiledViasByNet,
+    viaTile: generatedViaTile,
     tileCount,
   }
 }
