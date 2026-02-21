@@ -147,7 +147,7 @@ function solveSample() {
         ports: result.ports,
       },
       inputConnections: result.connections,
-      viaTile: result.viaGraph,
+      viaTile: result.viaTile,
     };
 
     if (quickMode) {

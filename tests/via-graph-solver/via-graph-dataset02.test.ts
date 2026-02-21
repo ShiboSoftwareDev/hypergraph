@@ -72,7 +72,7 @@ test("via-graph-dataset02: solve sample 0 with tiled via topology", () => {
       ports: result.ports,
     },
     inputConnections: result.connections,
-    viaTile: result.viaGraph,
+    viaTile: result.viaTile,
   })
 
   solver.solve()

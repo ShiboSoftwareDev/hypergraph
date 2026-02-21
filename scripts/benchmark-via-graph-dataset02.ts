@@ -125,7 +125,7 @@ const tryToSolve = (
         ports: result.ports,
       },
       inputConnections: result.connections,
-      viaTile: result.viaGraph,
+      viaTile: result.viaTile,
     }
 
     // In quick mode, reduce max iterations for faster benchmarking
