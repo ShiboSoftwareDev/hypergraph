@@ -27,6 +27,15 @@ type Bounds = { minX: number; maxX: number; minY: number; maxY: number }
 
 type HorizontalSegment = { xStart: number; xEnd: number; y: number }
 type VerticalSegment = { x: number; yStart: number; yEnd: number }
+type SideName = "top" | "bottom" | "left" | "right"
+type ViaPortCandidate = {
+  convexRegion: JRegion
+  position: Point
+  side: SideName
+  primaryDistance: number
+  orthDistance: number
+  key: string
+}
 
 /**
  * Remove consecutive duplicate points from a polygon.
@@ -89,6 +98,43 @@ function centroid(points: Point[]): Point {
     cy += p.y
   }
   return { x: cx / points.length, y: cy / points.length }
+}
+
+function classifySideFromBounds(point: Point, bounds: Bounds): SideName {
+  const distances: Record<SideName, number> = {
+    left: Math.abs(point.x - bounds.minX),
+    right: Math.abs(point.x - bounds.maxX),
+    bottom: Math.abs(point.y - bounds.minY),
+    top: Math.abs(point.y - bounds.maxY),
+  }
+
+  let bestSide: SideName = "left"
+  let bestDistance = distances.left
+  for (const side of ["right", "bottom", "top"] as const) {
+    if (distances[side] < bestDistance) {
+      bestSide = side
+      bestDistance = distances[side]
+    }
+  }
+
+  return bestSide
+}
+
+function toCandidateKey(regionId: string, point: Point): string {
+  return `${regionId}:${point.x.toFixed(6)},${point.y.toFixed(6)}`
+}
+
+function compareCandidateQuality(
+  a: ViaPortCandidate,
+  b: ViaPortCandidate,
+): number {
+  if (Math.abs(a.primaryDistance - b.primaryDistance) > 1e-6) {
+    return b.primaryDistance - a.primaryDistance
+  }
+  if (Math.abs(a.orthDistance - b.orthDistance) > 1e-6) {
+    return a.orthDistance - b.orthDistance
+  }
+  return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 }
 
 /**
@@ -372,7 +418,11 @@ export function generateConvexViaTopologyRegions(opts: {
   }
 
   // Step 5: Create ports between convex regions and via regions
+  // Restrict each via region to at most 4 ports (top/bottom/left/right).
   for (const viaRegion of viaRegions) {
+    const viaCenter = viaRegion.d.center as Point
+    const candidates: ViaPortCandidate[] = []
+
     for (const convexRegion of convexRegions) {
       const sharedEdges = findSharedEdges(
         viaRegion.d.polygon!,
@@ -384,17 +434,65 @@ export function generateConvexViaTopologyRegions(opts: {
         const portPositions = createPortsAlongEdge(edge, portPitch)
 
         for (const pos of portPositions) {
-          const port: JPort = {
-            portId: `via-convex:${viaRegion.regionId}-${convexRegion.regionId}:${portIdCounter++}`,
-            region1: viaRegion,
-            region2: convexRegion,
-            d: { x: pos.x, y: pos.y },
-          }
-          viaRegion.ports.push(port)
-          convexRegion.ports.push(port)
-          allPorts.push(port)
+          const dx = pos.x - viaCenter.x
+          const dy = pos.y - viaCenter.y
+          const side = classifySideFromBounds(pos, viaRegion.d.bounds)
+          const primaryDistance =
+            side === "left" || side === "right" ? Math.abs(dx) : Math.abs(dy)
+          const orthDistance =
+            side === "left" || side === "right" ? Math.abs(dy) : Math.abs(dx)
+
+          candidates.push({
+            convexRegion,
+            position: pos,
+            side,
+            primaryDistance,
+            orthDistance,
+            key: toCandidateKey(convexRegion.regionId, pos),
+          })
         }
       }
+    }
+
+    if (candidates.length === 0) continue
+
+    const selectedCandidates: ViaPortCandidate[] = []
+    const selectedKeys = new Set<string>()
+
+    const addCandidate = (candidate: ViaPortCandidate | undefined): void => {
+      if (!candidate) return
+      if (selectedKeys.has(candidate.key)) return
+      selectedCandidates.push(candidate)
+      selectedKeys.add(candidate.key)
+    }
+
+    for (const side of ["top", "bottom", "left", "right"] as const) {
+      const sideCandidate = [...candidates]
+        .filter((candidate) => candidate.side === side)
+        .sort(compareCandidateQuality)[0]
+      addCandidate(sideCandidate)
+    }
+
+    if (selectedCandidates.length < 4) {
+      for (const candidate of [...candidates].sort(compareCandidateQuality)) {
+        addCandidate(candidate)
+        if (selectedCandidates.length >= 4) break
+      }
+    }
+
+    for (const selectedCandidate of selectedCandidates.slice(0, 4)) {
+      const port: JPort = {
+        portId: `via-convex:${viaRegion.regionId}-${selectedCandidate.convexRegion.regionId}:${portIdCounter++}`,
+        region1: viaRegion,
+        region2: selectedCandidate.convexRegion,
+        d: {
+          x: selectedCandidate.position.x,
+          y: selectedCandidate.position.y,
+        },
+      }
+      viaRegion.ports.push(port)
+      selectedCandidate.convexRegion.ports.push(port)
+      allPorts.push(port)
     }
   }
 

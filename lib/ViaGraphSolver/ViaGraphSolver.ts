@@ -14,6 +14,11 @@ import {
   computeCrossingAssignmentsForPolygon,
   computeDifferentNetCrossingsForPolygon,
 } from "./polygonPerimeterUtils"
+import {
+  type ResolvedRouteLineSegment,
+  resolveSolvedRouteLineSegments,
+  resolveSolvedRoutePoints,
+} from "./resolveSolvedRoutePoints"
 import { visualizeViaGraphSolver } from "./visualizeViaGraphSolver"
 
 export const VIA_GRAPH_SOLVER_DEFAULTS = {
@@ -206,6 +211,18 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
   }
 
   override routeSolvedHook(solvedRoute: SolvedRoute) {}
+
+  getSolvedRoutePoints(
+    solvedRoute: SolvedRoute,
+  ): Array<{ x: number; y: number }> {
+    return resolveSolvedRoutePoints(solvedRoute, this.viaTile)
+  }
+
+  getSolvedRouteLineSegments(
+    solvedRoute: SolvedRoute,
+  ): ResolvedRouteLineSegment[] {
+    return resolveSolvedRouteLineSegments(solvedRoute, this.viaTile)
+  }
 
   override routeStartedHook(connection: Connection) {}
 
