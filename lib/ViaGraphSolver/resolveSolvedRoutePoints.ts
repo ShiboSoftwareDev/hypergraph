@@ -1,8 +1,7 @@
 import type { JPort, JRegion } from "../JumperGraphSolver/jumper-types"
 import type { Candidate, SolvedRoute } from "../types"
 import type { RouteSegment, ViaData, ViaTile } from "./ViaGraphSolver"
-
-type Point = { x: number; y: number }
+import type { Point } from "graphics-debug"
 export type ResolvedRouteLineSegment = {
   points: Point[]
   layer: "top" | "bottom"
