@@ -75,6 +75,9 @@ test("via-graph-convex-dataset02: solve sample 0 with convex regions", () => {
   // Verify we have via regions
   const viaRegions = result.regions.filter((r) => r.d.isViaRegion)
   expect(viaRegions.length).toBeGreaterThan(0)
+  for (const viaRegion of viaRegions) {
+    expect(viaRegion.ports.length).toBe(4)
+  }
 
   const solver = new ViaGraphSolver({
     inputGraph: {

@@ -27,6 +27,8 @@ const NET_COLOR_PALETTE = [
   "rgba(241, 196, 15, 0.35)", // yellow
   "rgba(230, 126, 34, 0.35)", // dark orange
 ]
+const BOTTOM_LAYER_TRACE_COLOR = "rgba(52, 152, 219, 0.95)"
+const BOTTOM_LAYER_TRACE_DASH = "3 2"
 
 export const visualizeViaGraphSolver = (
   solver: ViaGraphSolver,
@@ -130,17 +132,14 @@ export const visualizeViaGraphSolver = (
     const connectionColor = getConnectionColor(
       solvedRoute.connection.connectionId,
     )
-    const pathPoints: { x: number; y: number }[] = []
+    const lineSegments = solver.getSolvedRouteLineSegments(solvedRoute)
 
-    for (const candidate of solvedRoute.path) {
-      const port = candidate.port as JPort
-      pathPoints.push({ x: port.d.x, y: port.d.y })
-    }
-
-    if (pathPoints.length > 0) {
+    for (const lineSegment of lineSegments) {
+      const isBottomLayer = lineSegment.layer === "bottom"
       graphics.lines.push({
-        points: pathPoints,
-        strokeColor: connectionColor,
+        points: lineSegment.points,
+        strokeColor: isBottomLayer ? BOTTOM_LAYER_TRACE_COLOR : connectionColor,
+        ...(isBottomLayer ? { strokeDash: BOTTOM_LAYER_TRACE_DASH } : {}),
       })
     }
   }
