@@ -13,9 +13,14 @@ import { createPortsAlongEdge, findSharedEdges } from "./findSharedEdges"
 const DEFAULT_PORT_PITCH = 0.4
 
 /**
- * Default tile size (mm) for via placement.
+ * Default tile width (mm) for via placement.
  */
-const DEFAULT_TILE_SIZE = 5
+const DEFAULT_TILE_WIDTH = 4.417
+
+/**
+ * Default tile height (mm) for via placement.
+ */
+const DEFAULT_TILE_HEIGHT = 4.494
 
 /**
  * Default clearance (mm) around via regions for convex region computation.
@@ -270,6 +275,8 @@ function translateRouteSegments(
 export function generateConvexViaTopologyRegions(opts: {
   viaTile: ViaTile
   bounds: Bounds
+  tileWidth?: number
+  tileHeight?: number
   tileSize?: number
   portPitch?: number
   clearance?: number
@@ -280,7 +287,8 @@ export function generateConvexViaTopologyRegions(opts: {
   viaTile: ViaTile
   tileCount: { rows: number; cols: number }
 } {
-  const tileSize = opts.tileSize ?? DEFAULT_TILE_SIZE
+  const tileWidth = opts.tileWidth ?? opts.tileSize ?? DEFAULT_TILE_WIDTH
+  const tileHeight = opts.tileHeight ?? opts.tileSize ?? DEFAULT_TILE_HEIGHT
   const portPitch = opts.portPitch ?? DEFAULT_PORT_PITCH
   const clearance = opts.clearance ?? DEFAULT_CLEARANCE
   const concavityTolerance = opts.concavityTolerance ?? 0
@@ -290,8 +298,8 @@ export function generateConvexViaTopologyRegions(opts: {
   const width = bounds.maxX - bounds.minX
   const height = bounds.maxY - bounds.minY
 
-  const cols = Math.floor(width / tileSize)
-  const rows = Math.floor(height / tileSize)
+  const cols = Math.floor(width / tileWidth)
+  const rows = Math.floor(height / tileHeight)
 
   const allRegions: JRegion[] = []
   const allPorts: JPort[] = []
@@ -299,18 +307,19 @@ export function generateConvexViaTopologyRegions(opts: {
   const viaRegions: JRegion[] = []
 
   // Calculate tile grid position (centered within bounds)
-  const gridWidth = cols * tileSize
-  const gridHeight = rows * tileSize
+  const gridWidth = cols * tileWidth
+  const gridHeight = rows * tileHeight
   const gridMinX = bounds.minX + (width - gridWidth) / 2
   const gridMinY = bounds.minY + (height - gridHeight) / 2
-  const half = tileSize / 2
+  const halfWidth = tileWidth / 2
+  const halfHeight = tileHeight / 2
 
   // Step 1: Generate tiled via regions
   if (rows > 0 && cols > 0) {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        const tileCenterX = gridMinX + col * tileSize + half
-        const tileCenterY = gridMinY + row * tileSize + half
+        const tileCenterX = gridMinX + col * tileWidth + halfWidth
+        const tileCenterY = gridMinY + row * tileHeight + halfHeight
         const prefix = `t${row}_${col}`
 
         // Create per-net via regions for this tile

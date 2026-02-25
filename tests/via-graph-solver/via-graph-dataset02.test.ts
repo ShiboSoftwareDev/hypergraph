@@ -57,7 +57,7 @@ const extractXYConnections = (sample: DatasetSample): XYConnection[] => {
 }
 
 test("via-graph-dataset02: solve sample 0 with tiled via topology", () => {
-  const sample = typedDataset[0]
+  const sample = typedDataset[1]
   const xyConnections = extractXYConnections(sample)
 
   const result = createViaGraphFromXYConnections(xyConnections, viaTile)

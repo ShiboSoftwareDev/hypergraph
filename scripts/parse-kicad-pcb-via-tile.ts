@@ -394,13 +394,27 @@ function buildRouteSegmentsForNet(
 }
 
 async function main() {
-  const inputPath = process.argv[2]
-  const outputPath =
-    process.argv[3] ?? path.join("assets", "ViaGraphSolver", "via-tile.json")
+  const args = process.argv.slice(2)
+  const positionalArgs = args.filter((arg) => !arg.startsWith("--"))
+  const inputPath = positionalArgs[0]
+  const outputArg =
+    positionalArgs.length > 1
+      ? positionalArgs[positionalArgs.length - 1]
+      : undefined
+
+  const outputPath = outputArg
+    ? outputArg.includes("/") || outputArg.includes("\\")
+      ? outputArg
+      : path.join(
+          "assets",
+          "ViaGraphSolver",
+          outputArg.endsWith(".json") ? outputArg : `${outputArg}.json`,
+        )
+    : path.join("assets", "ViaGraphSolver", "via-tile.json")
 
   if (!inputPath) {
     console.error(
-      "Usage: bun scripts/parse-kicad-pcb-via-tile.ts <input.kicad_pcb> [output.json]",
+      "Usage: bun scripts/parse-kicad-pcb-via-tile.ts <input.kicad_pcb> [output-name-or-path]",
     )
     process.exit(1)
   }
