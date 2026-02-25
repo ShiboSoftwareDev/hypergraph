@@ -62,6 +62,8 @@ export function createConvexViaGraphFromXYConnections(
   xyConnections: XYConnection[],
   viaTile: ViaTile = defaultViaTile as ViaTile,
   opts?: {
+    tileWidth?: number
+    tileHeight?: number
     tileSize?: number
     portPitch?: number
     clearance?: number
@@ -80,6 +82,8 @@ export function createConvexViaGraphFromXYConnections(
   } = generateConvexViaTopologyRegions({
     viaTile,
     bounds,
+    tileWidth: opts?.tileWidth,
+    tileHeight: opts?.tileHeight,
     tileSize: opts?.tileSize,
     portPitch: opts?.portPitch,
     clearance: opts?.clearance,
