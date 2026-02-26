@@ -1,4 +1,4 @@
-import viaTile from "assets/ViaGraphSolver/4-net-via-tile.json"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import type { ViaTile } from "./ViaGraphSolver"
 import { generateViaTopologyGrid } from "./via-graph-generator/generateViaTopologyGrid"
 import { generateViaTopologyRegions } from "./via-graph-generator/generateViaTopologyRegions"

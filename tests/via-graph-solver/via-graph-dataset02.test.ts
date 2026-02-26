@@ -4,7 +4,7 @@ import type { XYConnection } from "lib/JumperGraphSolver/jumper-graph-generator/
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphFromXYConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphFromXYConnections"
 import dataset from "../../datasets/jumper-graph-solver/dataset02.json"
-import viaTile from "assets/ViaGraphSolver/4-net-via-tile.json"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 
 interface DatasetSample {
   config: {

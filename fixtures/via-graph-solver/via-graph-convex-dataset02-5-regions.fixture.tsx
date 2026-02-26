@@ -1,5 +1,5 @@
 import { GenericSolverDebugger } from "@tscircuit/solver-utils/react"
-import viaTile from "assets/ViaGraphSolver/5-net-via-tile.json"
+import viaTile from "assets/ViaGraphSolver/via-tile-5-regions.json"
 import type { XYConnection } from "lib/JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createConvexViaGraphFromXYConnections } from "lib/ViaGraphSolver/via-graph-generator/createConvexViaGraphFromXYConnections"

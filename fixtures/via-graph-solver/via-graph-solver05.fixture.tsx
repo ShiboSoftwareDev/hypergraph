@@ -11,7 +11,7 @@ import type { ViaByNet, ViaTile } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { findBoundaryRegionForPolygons } from "lib/ViaGraphSolver/via-graph-generator/findBoundaryRegionForPolygons"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viaTile from "assets/ViaGraphSolver/4-net-via-tile.json"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 
 // ── Configuration ──────────────────────────────────────────────────────
 const TILE_SIZE = 5
