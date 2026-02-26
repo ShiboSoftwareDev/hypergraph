@@ -4,7 +4,7 @@ import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphFromXYConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphFromXYConnections"
 import { useMemo, useState } from "react"
 import dataset from "../../datasets/jumper-graph-solver/dataset02.json"
-import viaTile from "assets/ViaGraphSolver/via-tile.json"
+import viaTile from "assets/ViaGraphSolver/4-net-via-tile.json"
 
 interface DatasetSample {
   config: {
