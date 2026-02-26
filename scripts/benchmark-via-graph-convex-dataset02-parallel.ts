@@ -337,7 +337,7 @@ const dataset: DatasetSample[] = JSON.parse(
 // Load vias-by-net
 const defaultViaTilePath = path.join(
   __dirname,
-  "../assets/ViaGraphSolver/via-tile.json",
+  "../assets/ViaGraphSolver/via-tile-4-regions.json",
 )
 const viaTilePath = viaTileArg
   ? path.isAbsolute(viaTileArg)

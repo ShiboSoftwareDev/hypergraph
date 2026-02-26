@@ -320,7 +320,7 @@ const dataset: DatasetSample[] = JSON.parse(
 // Load vias-by-net
 const viaTilePath = path.join(
   __dirname,
-  "../assets/ViaGraphSolver/via-tile.json",
+  "../assets/ViaGraphSolver/via-tile-4-regions.json",
 )
 const viaTile: ViaTile = JSON.parse(fs.readFileSync(viaTilePath, "utf8"))
 

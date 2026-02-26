@@ -15,12 +15,12 @@ const DEFAULT_PORT_PITCH = 0.4
 /**
  * Default tile width (mm) for via placement.
  */
-const DEFAULT_TILE_WIDTH = 4.417
+const DEFAULT_TILE_WIDTH = 3.727
 
 /**
  * Default tile height (mm) for via placement.
  */
-const DEFAULT_TILE_HEIGHT = 4.494
+const DEFAULT_TILE_HEIGHT = 4.03
 
 /**
  * Default clearance (mm) around via regions for convex region computation.
