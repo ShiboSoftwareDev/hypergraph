@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import viaTile from "assets/ViaGraphSolver/via-tile.json"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import type { XYConnection } from "lib/JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"

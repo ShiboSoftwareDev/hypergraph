@@ -1,4 +1,4 @@
-import defaultViaTile from "assets/ViaGraphSolver/via-tile.json"
+import defaultViaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import type { XYConnection } from "../../JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
 import type { JumperGraph } from "../../JumperGraphSolver/jumper-types"
 import type { Connection } from "../../types"

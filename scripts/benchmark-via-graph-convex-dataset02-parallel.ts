@@ -1,7 +1,7 @@
 /**
  * Parallel benchmark for ViaGraphSolver using Dataset02 with convex regions.
  *
- * Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options]
+ * Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options] [via-json-file]
  *
  * This script uses a single file approach where worker code is embedded as a string
  * and executed via eval in the worker thread.
@@ -20,6 +20,7 @@ const __dirname = path.dirname(__filename)
 const args = process.argv.slice(2)
 const limitArg = args.find((a) => a.startsWith("--limit="))
 const concurrencyArg = args.find((a) => a.startsWith("--concurrency="))
+const viaTileArg = args.filter((a) => !a.startsWith("--")).at(-1)
 const SAMPLE_LIMIT = limitArg ? parseInt(limitArg.split("=")[1], 10) : undefined
 const CONCURRENCY = concurrencyArg
   ? parseInt(concurrencyArg.split("=")[1], 10)
@@ -29,18 +30,20 @@ const HELP = args.includes("--help") || args.includes("-h")
 
 if (HELP) {
   console.log(`
-Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options]
+Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options] [via-json-file]
 
 Options:
   --limit=N         Only run first N samples (default: all 1000)
   --concurrency=N   Number of parallel workers (default: CPU count = ${cpus().length})
   --quick           Use reduced MAX_ITERATIONS for faster but less accurate results
+  [via-json-file]   Optional via JSON file path (default: assets/ViaGraphSolver/via-tile.json)
   --help, -h        Show this help message
 
 Examples:
   npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --limit=100
   npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --concurrency=4 --quick
   npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --limit=200 --concurrency=8
+  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --quick assets/ViaGraphSolver/via-tile-2.json
 `)
   process.exit(0)
 }
@@ -332,10 +335,19 @@ const dataset: DatasetSample[] = JSON.parse(
 )
 
 // Load vias-by-net
-const viaTilePath = path.join(
+const defaultViaTilePath = path.join(
   __dirname,
   "../assets/ViaGraphSolver/via-tile.json",
 )
+const viaTilePath = viaTileArg
+  ? path.isAbsolute(viaTileArg)
+    ? viaTileArg
+    : path.resolve(process.cwd(), viaTileArg)
+  : defaultViaTilePath
+if (!fs.existsSync(viaTilePath)) {
+  console.error(`Error: via JSON file not found: ${viaTilePath}`)
+  process.exit(1)
+}
 const viaTile: ViaTile = JSON.parse(fs.readFileSync(viaTilePath, "utf8"))
 
 // Path to built dist
@@ -358,7 +370,7 @@ console.log(
 )
 console.log("=".repeat(70))
 console.log(`Loaded ${dataset.length} samples from dataset02`)
-console.log(`Via topology loaded from via-tile.json`)
+console.log(`Via topology loaded from ${viaTilePath}`)
 console.log(`Concurrency: ${CONCURRENCY} workers`)
 if (SAMPLE_LIMIT) {
   console.log(`Sample limit: ${SAMPLE_LIMIT}`)
