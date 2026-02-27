@@ -1,0 +1,132 @@
+{
+  "viasByNet": {
+    "net1": [
+      {
+        "viaId": "1b0111be-ce08-409a-80b7-5006cb5e2c5b",
+        "diameter": 0.6,
+        "position": {
+          "x": -0.82315,
+          "y": 0.216898
+        }
+      },
+      {
+        "viaId": "2f36dd01-8bf4-49dc-b86b-22c27e4cb7bf",
+        "diameter": 0.6,
+        "position": {
+          "x": -0.078632,
+          "y": -0.528441
+        }
+      }
+    ],
+    "net2": [
+      {
+        "viaId": "51af4ca3-53f4-4a03-914b-6dba63eb8c4a",
+        "diameter": 0.6,
+        "position": {
+          "x": 0.529579,
+          "y": 0.806171
+        }
+      },
+      {
+        "viaId": "b602bfde-3ed8-4f47-9fa7-5baa7a8a9ec4",
+        "diameter": 0.6,
+        "position": {
+          "x": -0.82862,
+          "y": -0.533085
+        }
+      }
+    ],
+    "net3": [
+      {
+        "viaId": "095a83cb-28a7-472c-95fe-bfb08db097f5",
+        "diameter": 0.6,
+        "position": {
+          "x": -0.220415,
+          "y": 0.809972
+        }
+      },
+      {
+        "viaId": "e8d75a9d-5b0e-4158-8d39-01b264e49299",
+        "diameter": 0.6,
+        "position": {
+          "x": 0.524634,
+          "y": 0.056185
+        }
+      }
+    ]
+  },
+  "routeSegments": [
+    {
+      "routeId": "net1:route_0",
+      "fromPort": "1b0111be-ce08-409a-80b7-5006cb5e2c5b",
+      "toPort": "2f36dd01-8bf4-49dc-b86b-22c27e4cb7bf",
+      "layer": "bottom",
+      "segments": [
+        {
+          "x": -0.82315,
+          "y": 0.216898
+        },
+        {
+          "x": -0.078632,
+          "y": -0.52762
+        },
+        {
+          "x": -0.078632,
+          "y": -0.528441
+        }
+      ]
+    },
+    {
+      "routeId": "net2:route_0",
+      "fromPort": "51af4ca3-53f4-4a03-914b-6dba63eb8c4a",
+      "toPort": "b602bfde-3ed8-4f47-9fa7-5baa7a8a9ec4",
+      "layer": "bottom",
+      "segments": [
+        {
+          "x": 0.529579,
+          "y": 0.806171
+        },
+        {
+          "x": 1.050634,
+          "y": 0.285116
+        },
+        {
+          "x": 1.050634,
+          "y": -0.161692
+        },
+        {
+          "x": 0.157885,
+          "y": -1.054441
+        },
+        {
+          "x": -0.307264,
+          "y": -1.054441
+        },
+        {
+          "x": -0.82862,
+          "y": -0.533085
+        }
+      ]
+    },
+    {
+      "routeId": "net3:route_0",
+      "fromPort": "095a83cb-28a7-472c-95fe-bfb08db097f5",
+      "toPort": "e8d75a9d-5b0e-4158-8d39-01b264e49299",
+      "layer": "bottom",
+      "segments": [
+        {
+          "x": -0.220415,
+          "y": 0.809972
+        },
+        {
+          "x": 0.524634,
+          "y": 0.064923
+        },
+        {
+          "x": 0.524634,
+          "y": 0.056185
+        }
+      ]
+    }
+  ]
+}
