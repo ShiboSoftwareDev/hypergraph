@@ -144,11 +144,7 @@ export function findSharedEdges(
         y: a1.y + overlap.to * dy,
       }
 
-      // Only add if the edge has non-trivial length
-      const edgeLen = Math.sqrt((to.x - from.x) ** 2 + (to.y - from.y) ** 2)
-      if (edgeLen > tolerance) {
-        sharedEdges.push({ from, to })
-      }
+      sharedEdges.push({ from, to })
     }
   }
 
