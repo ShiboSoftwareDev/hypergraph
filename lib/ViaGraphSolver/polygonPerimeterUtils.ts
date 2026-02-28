@@ -7,6 +7,49 @@ import {
 } from "../JumperGraphSolver/perimeterChordUtils"
 import type { RegionPortAssignment } from "../types"
 
+type Point = { x: number; y: number }
+
+/**
+ * Check if two 2D line segments intersect (excluding shared endpoints).
+ * Uses the cross product method for robust intersection detection.
+ */
+function lineSegmentsIntersect(
+  p1: Point,
+  p2: Point,
+  p3: Point,
+  p4: Point,
+  eps = 1e-9,
+): boolean {
+  // Check if points are coincident (shared endpoint)
+  const pointsCoincident = (a: Point, b: Point) =>
+    Math.abs(a.x - b.x) < eps && Math.abs(a.y - b.y) < eps
+
+  if (
+    pointsCoincident(p1, p3) ||
+    pointsCoincident(p1, p4) ||
+    pointsCoincident(p2, p3) ||
+    pointsCoincident(p2, p4)
+  ) {
+    return false
+  }
+
+  // Cross product of vectors
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+
+  const d1 = cross(p3, p4, p1)
+  const d2 = cross(p3, p4, p2)
+  const d3 = cross(p1, p2, p3)
+  const d4 = cross(p1, p2, p4)
+
+  // Check if segments straddle each other
+  if (d1 * d2 < 0 && d3 * d4 < 0) {
+    return true
+  }
+
+  return false
+}
+
 /**
  * Maps a point to a 1D coordinate along a polygon's perimeter.
  *
@@ -25,10 +68,42 @@ export function polygonPerimeterT(
 }
 
 /**
+ * Check if two chords cross, using both perimeter-based and geometric checks.
+ * The perimeter-based check works for chords that span across a region,
+ * but fails when both endpoints of a chord are on the same edge.
+ * In that case, we fall back to actual 2D line segment intersection.
+ */
+function chordsIntersect(
+  newChord: [number, number],
+  existingChord: [number, number],
+  perimeter: number,
+  newPort1: JPort,
+  newPort2: JPort,
+  existingPort1: JPort,
+  existingPort2: JPort,
+): boolean {
+  // First try the perimeter-based crossing check
+  if (chordsCross(newChord, existingChord, perimeter)) {
+    return true
+  }
+
+  // If perimeter check didn't find a crossing, also check 2D line segment
+  // intersection. This catches cases where ports are on the same edge.
+  return lineSegmentsIntersect(
+    newPort1.d,
+    newPort2.d,
+    existingPort1.d,
+    existingPort2.d,
+  )
+}
+
+/**
  * Compute the number of crossings between a new port pair and existing
  * assignments in a polygon region.
  *
  * Uses polygon perimeter mapping instead of bounding-box mapping.
+ * Also performs 2D line segment intersection check as fallback for
+ * cases where both ports of a chord are on the same polygon edge.
  */
 export function computeDifferentNetCrossingsForPolygon(
   region: JRegion,
@@ -50,17 +125,23 @@ export function computeDifferentNetCrossingsForPolygon(
   const assignments = region.assignments ?? []
 
   for (const assignment of assignments) {
-    const existingT1 = getPortPerimeterTInRegion(
-      assignment.regionPort1 as JPort,
-      region,
-    )
-    const existingT2 = getPortPerimeterTInRegion(
-      assignment.regionPort2 as JPort,
-      region,
-    )
+    const existingPort1 = assignment.regionPort1 as JPort
+    const existingPort2 = assignment.regionPort2 as JPort
+    const existingT1 = getPortPerimeterTInRegion(existingPort1, region)
+    const existingT2 = getPortPerimeterTInRegion(existingPort2, region)
     const existingChord: [number, number] = [existingT1, existingT2]
 
-    if (chordsCross(newChord, existingChord, perimeter)) {
+    if (
+      chordsIntersect(
+        newChord,
+        existingChord,
+        perimeter,
+        port1,
+        port2,
+        existingPort1,
+        existingPort2,
+      )
+    ) {
       crossings++
     }
   }
@@ -73,6 +154,8 @@ export function computeDifferentNetCrossingsForPolygon(
  * polygon region.
  *
  * Uses polygon perimeter mapping instead of bounding-box mapping.
+ * Also performs 2D line segment intersection check as fallback for
+ * cases where both ports of a chord are on the same polygon edge.
  */
 export function computeCrossingAssignmentsForPolygon(
   region: JRegion,
@@ -93,17 +176,23 @@ export function computeCrossingAssignmentsForPolygon(
   const assignments = region.assignments ?? []
 
   for (const assignment of assignments) {
-    const existingT1 = getPortPerimeterTInRegion(
-      assignment.regionPort1 as JPort,
-      region,
-    )
-    const existingT2 = getPortPerimeterTInRegion(
-      assignment.regionPort2 as JPort,
-      region,
-    )
+    const existingPort1 = assignment.regionPort1 as JPort
+    const existingPort2 = assignment.regionPort2 as JPort
+    const existingT1 = getPortPerimeterTInRegion(existingPort1, region)
+    const existingT2 = getPortPerimeterTInRegion(existingPort2, region)
     const existingChord: [number, number] = [existingT1, existingT2]
 
-    if (chordsCross(newChord, existingChord, perimeter)) {
+    if (
+      chordsIntersect(
+        newChord,
+        existingChord,
+        perimeter,
+        port1,
+        port2,
+        existingPort1,
+        existingPort2,
+      )
+    ) {
       crossingAssignments.push(assignment)
     }
   }

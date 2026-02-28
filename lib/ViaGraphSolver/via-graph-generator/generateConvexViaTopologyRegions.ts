@@ -20,17 +20,31 @@ const DEFAULT_CLEARANCE = 0.1
 type Point = { x: number; y: number }
 type Bounds = { minX: number; maxX: number; minY: number; maxY: number }
 
+/**
+ * Unit tile template containing convex regions computed once.
+ * This is centered at (0,0) with dimensions tileWidth x tileHeight.
+ */
+interface UnitTileTemplate {
+  /** Via regions within the tile (centered at origin) */
+  viaRegions: Array<{
+    netName: string
+    polygon: Point[]
+    bounds: Bounds
+    center: Point
+  }>
+  /** Convex regions computed by ConvexRegionsSolver (centered at origin) */
+  convexRegions: Array<{
+    polygon: Point[]
+    bounds: Bounds
+    center: Point
+  }>
+  /** Tile dimensions */
+  tileWidth: number
+  tileHeight: number
+}
+
 type HorizontalSegment = { xStart: number; xEnd: number; y: number }
 type VerticalSegment = { x: number; yStart: number; yEnd: number }
-type SideName = "top" | "bottom" | "left" | "right"
-type ViaPortCandidate = {
-  convexRegion: JRegion
-  position: Point
-  side: SideName
-  primaryDistance: number
-  orthDistance: number
-  key: string
-}
 
 /**
  * Remove consecutive duplicate points from a polygon.
@@ -93,43 +107,6 @@ function centroid(points: Point[]): Point {
     cy += p.y
   }
   return { x: cx / points.length, y: cy / points.length }
-}
-
-function classifySideFromBounds(point: Point, bounds: Bounds): SideName {
-  const distances: Record<SideName, number> = {
-    left: Math.abs(point.x - bounds.minX),
-    right: Math.abs(point.x - bounds.maxX),
-    bottom: Math.abs(point.y - bounds.minY),
-    top: Math.abs(point.y - bounds.maxY),
-  }
-
-  let bestSide: SideName = "left"
-  let bestDistance = distances.left
-  for (const side of ["right", "bottom", "top"] as const) {
-    if (distances[side] < bestDistance) {
-      bestSide = side
-      bestDistance = distances[side]
-    }
-  }
-
-  return bestSide
-}
-
-function toCandidateKey(regionId: string, point: Point): string {
-  return `${regionId}:${point.x.toFixed(6)},${point.y.toFixed(6)}`
-}
-
-function compareCandidateQuality(
-  a: ViaPortCandidate,
-  b: ViaPortCandidate,
-): number {
-  if (Math.abs(a.primaryDistance - b.primaryDistance) > 1e-6) {
-    return b.primaryDistance - a.primaryDistance
-  }
-  if (Math.abs(a.orthDistance - b.orthDistance) > 1e-6) {
-    return a.orthDistance - b.orthDistance
-  }
-  return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 }
 
 /**
@@ -255,12 +232,214 @@ function translateRouteSegments(
 }
 
 /**
+ * Translate a polygon by (dx, dy).
+ */
+function translatePolygon(polygon: Point[], dx: number, dy: number): Point[] {
+  return polygon.map((p) => ({ x: p.x + dx, y: p.y + dy }))
+}
+
+/**
+ * Create rectangular polygon from bounds.
+ */
+function rectPolygonFromBounds(b: Bounds): Point[] {
+  return [
+    { x: b.minX, y: b.minY },
+    { x: b.maxX, y: b.minY },
+    { x: b.maxX, y: b.maxY },
+    { x: b.minX, y: b.maxY },
+  ]
+}
+
+/**
+ * Extend via region polygon to tile boundary when extremely close (< threshold).
+ * Only extends polygon edges that are within threshold of the tile boundary.
+ * This prevents thin convex regions from being created in small gaps.
+ */
+function extendViaRegionToTileEdge(
+  polygon: Point[],
+  tileBounds: Bounds,
+  threshold = 0.1,
+): Point[] {
+  if (polygon.length === 0) return polygon
+
+  const polyBounds = boundsFromPolygon(polygon)
+
+  // Calculate distance from polygon edges to tile edges
+  const distToLeft = polyBounds.minX - tileBounds.minX
+  const distToRight = tileBounds.maxX - polyBounds.maxX
+  const distToBottom = polyBounds.minY - tileBounds.minY
+  const distToTop = tileBounds.maxY - polyBounds.maxY
+
+  // Only extend if extremely close (< threshold)
+  const extendLeft = distToLeft > 0 && distToLeft < threshold
+  const extendRight = distToRight > 0 && distToRight < threshold
+  const extendBottom = distToBottom > 0 && distToBottom < threshold
+  const extendTop = distToTop > 0 && distToTop < threshold
+
+  if (!extendLeft && !extendRight && !extendBottom && !extendTop) {
+    return polygon
+  }
+
+  const result = polygon.map((p) => {
+    let x = p.x
+    let y = p.y
+
+    // Extend points on polygon's left edge to tile's left boundary
+    if (extendLeft && Math.abs(p.x - polyBounds.minX) < 0.001) {
+      x = tileBounds.minX
+    }
+    // Extend points on polygon's right edge to tile's right boundary
+    if (extendRight && Math.abs(p.x - polyBounds.maxX) < 0.001) {
+      x = tileBounds.maxX
+    }
+    // Extend points on polygon's bottom edge to tile's bottom boundary
+    if (extendBottom && Math.abs(p.y - polyBounds.minY) < 0.001) {
+      y = tileBounds.minY
+    }
+    // Extend points on polygon's top edge to tile's top boundary
+    if (extendTop && Math.abs(p.y - polyBounds.maxY) < 0.001) {
+      y = tileBounds.maxY
+    }
+
+    return { x, y }
+  })
+
+  return deduplicateConsecutivePoints(result)
+}
+
+/**
+ * Check if a point is inside or on the boundary of a polygon.
+ */
+function pointInPolygon(point: Point, polygon: Point[]): boolean {
+  let inside = false
+  const n = polygon.length
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].x
+    const yi = polygon[i].y
+    const xj = polygon[j].x
+    const yj = polygon[j].y
+
+    // Check if point is on edge
+    const onEdge =
+      Math.abs((point.y - yi) * (xj - xi) - (point.x - xi) * (yj - yi)) <
+        0.001 &&
+      point.x >= Math.min(xi, xj) - 0.001 &&
+      point.x <= Math.max(xi, xj) + 0.001 &&
+      point.y >= Math.min(yi, yj) - 0.001 &&
+      point.y <= Math.max(yi, yj) + 0.001
+
+    if (onEdge) return true
+
+    if (yi > point.y !== yj > point.y) {
+      const intersectX = ((xj - xi) * (point.y - yi)) / (yj - yi) + xi
+      if (point.x < intersectX) {
+        inside = !inside
+      }
+    }
+  }
+  return inside
+}
+
+/**
+ * Find the region that contains the given point.
+ */
+function findRegionContainingPoint(
+  point: Point,
+  regions: JRegion[],
+): JRegion | null {
+  for (const region of regions) {
+    if (region.d.polygon && pointInPolygon(point, region.d.polygon)) {
+      return region
+    }
+  }
+  return null
+}
+
+/**
+ * Compute the unit tile template by running ConvexRegionsSolver once.
+ * The tile is centered at (0, 0).
+ */
+function computeUnitTileTemplate(
+  viaTile: ViaTile,
+  tileWidth: number,
+  tileHeight: number,
+  clearance: number,
+  concavityTolerance: number,
+): UnitTileTemplate {
+  const halfWidth = tileWidth / 2
+  const halfHeight = tileHeight / 2
+
+  // Tile bounds centered at origin
+  const tileBounds: Bounds = {
+    minX: -halfWidth,
+    maxX: halfWidth,
+    minY: -halfHeight,
+    maxY: halfHeight,
+  }
+
+  // Generate via region polygons for the unit tile (centered at origin)
+  const viaRegions: UnitTileTemplate["viaRegions"] = []
+
+  for (const [netName, vias] of Object.entries(viaTile.viasByNet)) {
+    if (vias.length === 0) continue
+
+    const polygon = generateViaRegionPolygon(vias)
+    if (polygon.length === 0) continue
+
+    viaRegions.push({
+      netName,
+      polygon,
+      bounds: boundsFromPolygon(polygon),
+      center: centroid(polygon),
+    })
+  }
+
+  // Extend via region polygons to tile edge when extremely close (< 0.1mm)
+  // This prevents thin convex regions from being created in small gaps
+  const obstaclePolygons = viaRegions.map((r) => ({
+    points: extendViaRegionToTileEdge(r.polygon, tileBounds),
+  }))
+
+  const solver = new ConvexRegionsSolver({
+    bounds: tileBounds,
+    polygons: obstaclePolygons,
+    clearance,
+    concavityTolerance,
+  })
+
+  solver.solve()
+  const solverOutput = solver.getOutput()
+
+  if (!solverOutput) {
+    throw new Error("ConvexRegionsSolver failed to compute unit tile regions")
+  }
+
+  // Convert solver output to template format
+  const convexRegions: UnitTileTemplate["convexRegions"] =
+    solverOutput.regions.map((polygon: Point[]) => ({
+      polygon,
+      bounds: boundsFromPolygon(polygon),
+      center: centroid(polygon),
+    }))
+
+  return {
+    viaRegions,
+    convexRegions,
+    tileWidth,
+    tileHeight,
+  }
+}
+
+/**
  * Generates a via topology using convex regions computed by ConvexRegionsSolver.
  *
- * 1. Via tiles are placed on a grid (5mm tiles by default)
- * 2. Per-net via region polygons are created within each tile
- * 3. Convex regions are computed globally with via region polygons as obstacles
- * 4. Ports are created between adjacent convex regions and between convex/via regions
+ * New tiled approach:
+ * 1. Compute convex regions for a single unit tile (centered at origin)
+ * 2. Replicate the tile's regions across the grid by translation
+ * 3. Create rectangular filler regions for outer areas:
+ *    - Top/bottom regions extend horizontally across full bounds width
+ *    - Left/right regions extend vertically between top/bottom regions
+ * 4. Create ports between adjacent tiles and between tiles and filler regions
  */
 export function generateConvexViaTopologyRegions(opts: {
   viaTile: ViaTile
@@ -301,28 +480,109 @@ export function generateConvexViaTopologyRegions(opts: {
   const allPorts: JPort[] = []
   const viaTile: ViaTile = { viasByNet: {}, routeSegments: [] }
   const viaRegions: JRegion[] = []
+  const convexRegions: JRegion[] = []
 
   // Calculate tile grid position (centered within bounds)
   const gridWidth = cols * tileWidth
   const gridHeight = rows * tileHeight
   const gridMinX = bounds.minX + (width - gridWidth) / 2
   const gridMinY = bounds.minY + (height - gridHeight) / 2
+  const gridMaxX = gridMinX + gridWidth
+  const gridMaxY = gridMinY + gridHeight
   const halfWidth = tileWidth / 2
   const halfHeight = tileHeight / 2
 
-  // Step 1: Generate tiled via regions
+  let portIdCounter = 0
+
+  // Track used port positions to prevent duplicates
+  // Duplicates can occur when a via region shares edges with multiple convex
+  // regions that meet at the same corner point
+  const usedPortPositions = new Set<string>()
+  const getPortPosKey = (x: number, y: number) =>
+    `${x.toFixed(4)},${y.toFixed(4)}`
+
+  // Helper to create a port between two regions (skips if position already used)
+  const createPort = (
+    portId: string,
+    region1: JRegion,
+    region2: JRegion,
+    pos: { x: number; y: number },
+  ): JPort | null => {
+    const posKey = getPortPosKey(pos.x, pos.y)
+    if (usedPortPositions.has(posKey)) {
+      return null
+    }
+    usedPortPositions.add(posKey)
+    const port: JPort = {
+      portId,
+      region1,
+      region2,
+      d: { x: pos.x, y: pos.y },
+    }
+    region1.ports.push(port)
+    region2.ports.push(port)
+    allPorts.push(port)
+    return port
+  }
+
+  // Step 1: Compute unit tile template (only once)
+  let unitTileTemplate: UnitTileTemplate | null = null
   if (rows > 0 && cols > 0) {
+    unitTileTemplate = computeUnitTileTemplate(
+      inputViaTile,
+      tileWidth,
+      tileHeight,
+      clearance,
+      concavityTolerance,
+    )
+  }
+
+  // Step 2: Replicate tiles across the grid
+  if (rows > 0 && cols > 0 && unitTileTemplate) {
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const tileCenterX = gridMinX + col * tileWidth + halfWidth
         const tileCenterY = gridMinY + row * tileHeight + halfHeight
         const prefix = `t${row}_${col}`
 
-        // Create per-net via regions for this tile
+        // Create via regions for this tile (translated from template)
+        for (const templateViaRegion of unitTileTemplate.viaRegions) {
+          const translatedPolygon = translatePolygon(
+            templateViaRegion.polygon,
+            tileCenterX,
+            tileCenterY,
+          )
+
+          const viaRegion = createRegionFromPolygon(
+            `${prefix}:v:${templateViaRegion.netName}`,
+            translatedPolygon,
+            { isViaRegion: true },
+          )
+          viaRegions.push(viaRegion)
+          allRegions.push(viaRegion)
+        }
+
+        // Create convex regions for this tile (translated from template)
+        for (let i = 0; i < unitTileTemplate.convexRegions.length; i++) {
+          const templateConvexRegion = unitTileTemplate.convexRegions[i]
+          const translatedPolygon = translatePolygon(
+            templateConvexRegion.polygon,
+            tileCenterX,
+            tileCenterY,
+          )
+
+          const convexRegion = createRegionFromPolygon(
+            `${prefix}:convex:${i}`,
+            translatedPolygon,
+          )
+          convexRegions.push(convexRegion)
+          allRegions.push(convexRegion)
+        }
+
+        // Add vias to output viaTile
         for (const [netName, vias] of Object.entries(viasByNet)) {
           if (vias.length === 0) continue
 
-          // Translate vias to tile position
           const translatedVias = translateVias(
             vias,
             tileCenterX,
@@ -330,23 +590,10 @@ export function generateConvexViaTopologyRegions(opts: {
             prefix,
           )
 
-          // Add to output viaTile
           if (!viaTile.viasByNet[netName]) {
             viaTile.viasByNet[netName] = []
           }
           viaTile.viasByNet[netName].push(...translatedVias)
-
-          // Generate via region polygon
-          const polygon = generateViaRegionPolygon(translatedVias)
-          if (polygon.length === 0) continue
-
-          const viaRegion = createRegionFromPolygon(
-            `${prefix}:v:${netName}`,
-            polygon,
-            { isViaRegion: true },
-          )
-          viaRegions.push(viaRegion)
-          allRegions.push(viaRegion)
         }
 
         viaTile.routeSegments.push(
@@ -361,73 +608,402 @@ export function generateConvexViaTopologyRegions(opts: {
     }
   }
 
-  // Step 2: Compute convex regions using ConvexRegionsSolver
-  // Via region polygons are used as obstacles
-  const obstaclePolygons = viaRegions.map((r) => ({
-    points: r.d.polygon!,
-  }))
+  // Step 3: Create rectangular filler regions for outer areas
+  // - Top/bottom: height = margin, width = portPitch (trace width)
+  // - Left/right: width = margin, height = portPitch (trace width)
+  // - Corner assignment: if top/bottom margin >= left/right margin, top/bottom get corners
+  const fillerRegions: JRegion[] = []
 
-  const solverInput = {
-    bounds,
-    polygons: obstaclePolygons,
-    clearance,
-    concavityTolerance,
-  } as ConstructorParameters<typeof ConvexRegionsSolver>[0]
+  const topMargin = bounds.maxY - gridMaxY
+  const bottomMargin = gridMinY - bounds.minY
+  const leftMargin = gridMinX - bounds.minX
+  const rightMargin = bounds.maxX - gridMaxX
 
-  const solver = new ConvexRegionsSolver(solverInput)
+  // Determine which direction gets corners based on larger margins
+  const verticalMargin = Math.max(topMargin, bottomMargin)
+  const horizontalMargin = Math.max(leftMargin, rightMargin)
+  const topBottomGetCorners = verticalMargin >= horizontalMargin
 
-  solver.solve()
-  const solverOutput = solver.getOutput()
+  // Filler regions are multiple small rectangles (strips) along each edge:
+  // - Top edge: multiple strips (portPitch width x topMargin height)
+  // - Bottom edge: multiple strips (portPitch width x bottomMargin height)
+  // - Left edge: multiple strips (leftMargin width x portPitch height)
+  // - Right edge: multiple strips (rightMargin width x portPitch height)
+  //
+  // Corner assignment determines which edges extend to include corners:
+  // - If topBottomGetCorners: top/bottom strips extend into corner areas
+  // - Otherwise: left/right strips extend into corner areas
 
-  if (!solverOutput) {
-    throw new Error("ConvexRegionsSolver failed to compute regions")
+  // Calculate the extent for each edge (including corners if applicable)
+  const topMinX = topBottomGetCorners ? bounds.minX : gridMinX
+  const topMaxX = topBottomGetCorners ? bounds.maxX : gridMaxX
+  const bottomMinX = topBottomGetCorners ? bounds.minX : gridMinX
+  const bottomMaxX = topBottomGetCorners ? bounds.maxX : gridMaxX
+  const leftMinY = topBottomGetCorners ? gridMinY : bounds.minY
+  const leftMaxY = topBottomGetCorners ? gridMaxY : bounds.maxY
+  const rightMinY = topBottomGetCorners ? gridMinY : bounds.minY
+  const rightMaxY = topBottomGetCorners ? gridMaxY : bounds.maxY
+
+  // Create top filler strips
+  // Strip width = margin (same as height), but at least portPitch (trace width)
+  if (topMargin > 0.001) {
+    const topWidth = topMaxX - topMinX
+    const targetStripWidth = Math.max(topMargin, portPitch)
+    const numTopStrips = Math.max(1, Math.floor(topWidth / targetStripWidth))
+    const stripWidth = topWidth / numTopStrips
+
+    for (let i = 0; i < numTopStrips; i++) {
+      const fillerBounds: Bounds = {
+        minX: topMinX + i * stripWidth,
+        maxX: topMinX + (i + 1) * stripWidth,
+        minY: gridMaxY,
+        maxY: bounds.maxY,
+      }
+      const regionId = `filler:top:${i}`
+      const filler = createRegionFromPolygon(
+        regionId,
+        rectPolygonFromBounds(fillerBounds),
+      )
+      fillerRegions.push(filler)
+      allRegions.push(filler)
+    }
   }
 
-  // Step 3: Convert solver output to JRegions
-  const convexRegions: JRegion[] = solverOutput.regions.map(
-    (polygon: Point[], i: number) =>
-      createRegionFromPolygon(`convex:${i}`, polygon),
-  )
-  allRegions.push(...convexRegions)
+  // Create bottom filler strips
+  // Strip width = margin (same as height), but at least portPitch (trace width)
+  if (bottomMargin > 0.001) {
+    const bottomWidth = bottomMaxX - bottomMinX
+    const targetStripWidth = Math.max(bottomMargin, portPitch)
+    const numBottomStrips = Math.max(
+      1,
+      Math.floor(bottomWidth / targetStripWidth),
+    )
+    const stripWidth = bottomWidth / numBottomStrips
 
-  // Step 4: Create ports between adjacent convex regions
-  let portIdCounter = 0
+    for (let i = 0; i < numBottomStrips; i++) {
+      const fillerBounds: Bounds = {
+        minX: bottomMinX + i * stripWidth,
+        maxX: bottomMinX + (i + 1) * stripWidth,
+        minY: bounds.minY,
+        maxY: gridMinY,
+      }
+      const regionId = `filler:bottom:${i}`
+      const filler = createRegionFromPolygon(
+        regionId,
+        rectPolygonFromBounds(fillerBounds),
+      )
+      fillerRegions.push(filler)
+      allRegions.push(filler)
+    }
+  }
 
-  for (let i = 0; i < convexRegions.length; i++) {
-    for (let j = i + 1; j < convexRegions.length; j++) {
-      const region1 = convexRegions[i]
-      const region2 = convexRegions[j]
+  // Create left filler strips
+  // Strip height = margin (same as width), but at least portPitch (trace width)
+  if (leftMargin > 0.001) {
+    const leftHeight = leftMaxY - leftMinY
+    const targetStripHeight = Math.max(leftMargin, portPitch)
+    const numLeftStrips = Math.max(
+      1,
+      Math.floor(leftHeight / targetStripHeight),
+    )
+    const stripHeight = leftHeight / numLeftStrips
 
+    for (let i = 0; i < numLeftStrips; i++) {
+      const fillerBounds: Bounds = {
+        minX: bounds.minX,
+        maxX: gridMinX,
+        minY: leftMinY + i * stripHeight,
+        maxY: leftMinY + (i + 1) * stripHeight,
+      }
+      const regionId = `filler:left:${i}`
+      const filler = createRegionFromPolygon(
+        regionId,
+        rectPolygonFromBounds(fillerBounds),
+      )
+      fillerRegions.push(filler)
+      allRegions.push(filler)
+    }
+  }
+
+  // Create right filler strips
+  // Strip height = margin (same as width), but at least portPitch (trace width)
+  if (rightMargin > 0.001) {
+    const rightHeight = rightMaxY - rightMinY
+    const targetStripHeight = Math.max(rightMargin, portPitch)
+    const numRightStrips = Math.max(
+      1,
+      Math.floor(rightHeight / targetStripHeight),
+    )
+    const stripHeight = rightHeight / numRightStrips
+
+    for (let i = 0; i < numRightStrips; i++) {
+      const fillerBounds: Bounds = {
+        minX: gridMaxX,
+        maxX: bounds.maxX,
+        minY: rightMinY + i * stripHeight,
+        maxY: rightMinY + (i + 1) * stripHeight,
+      }
+      const regionId = `filler:right:${i}`
+      const filler = createRegionFromPolygon(
+        regionId,
+        rectPolygonFromBounds(fillerBounds),
+      )
+      fillerRegions.push(filler)
+      allRegions.push(filler)
+    }
+  }
+
+  // Step 4: Create ports between convex regions within each tile
+  // Since all tiles use the same template, we need to create ports within each tile
+  if (unitTileTemplate && rows > 0 && cols > 0) {
+    const regionsPerTile = unitTileTemplate.convexRegions.length
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const tileIndex = row * cols + col
+        const tileStartIdx = tileIndex * regionsPerTile
+
+        // Create ports between convex regions within this tile
+        for (let i = 0; i < regionsPerTile; i++) {
+          for (let j = i + 1; j < regionsPerTile; j++) {
+            const region1 = convexRegions[tileStartIdx + i]
+            const region2 = convexRegions[tileStartIdx + j]
+
+            const sharedEdges = findSharedEdges(
+              region1.d.polygon!,
+              region2.d.polygon!,
+              clearance * 2,
+            )
+
+            for (const edge of sharedEdges) {
+              const portPositions = createPortsAlongEdge(edge, portPitch)
+
+              for (const pos of portPositions) {
+                createPort(
+                  `t${row}_${col}:convex:${i}-${j}:${portIdCounter++}`,
+                  region1,
+                  region2,
+                  pos,
+                )
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Step 5: Create ports between adjacent tiles (horizontal and vertical neighbors)
+  // Use fixed port positions along tile boundaries to ensure connectivity even when
+  // convex regions don't perfectly align at tile edges
+  // Include both convex and via regions since via regions may extend to tile boundaries
+  if (unitTileTemplate && rows > 0 && cols > 0) {
+    const convexPerTile = unitTileTemplate.convexRegions.length
+    const viasPerTile = unitTileTemplate.viaRegions.length
+
+    // Generate port y-positions along vertical tile boundary
+    const numVerticalPorts = Math.floor(tileHeight / portPitch)
+    const verticalPortYOffsets: number[] = []
+    for (let i = 0; i < numVerticalPorts; i++) {
+      verticalPortYOffsets.push(-halfHeight + (i + 0.5) * portPitch)
+    }
+
+    // Generate port x-positions along horizontal tile boundary
+    const numHorizontalPorts = Math.floor(tileWidth / portPitch)
+    const horizontalPortXOffsets: number[] = []
+    for (let i = 0; i < numHorizontalPorts; i++) {
+      horizontalPortXOffsets.push(-halfWidth + (i + 0.5) * portPitch)
+    }
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const tileIndex = row * cols + col
+        const convexStartIdx = tileIndex * convexPerTile
+        const viaStartIdx = tileIndex * viasPerTile
+        const tileCenterX = gridMinX + col * tileWidth + halfWidth
+        const tileCenterY = gridMinY + row * tileHeight + halfHeight
+
+        // Get all regions for this tile (convex + via)
+        const tileConvexRegions = convexRegions.slice(
+          convexStartIdx,
+          convexStartIdx + convexPerTile,
+        )
+        const tileViaRegions = viaRegions.slice(
+          viaStartIdx,
+          viaStartIdx + viasPerTile,
+        )
+        const tileAllRegions = [...tileConvexRegions, ...tileViaRegions]
+
+        // Check right neighbor - create ports along vertical boundary
+        if (col + 1 < cols) {
+          const rightTileIndex = row * cols + (col + 1)
+          const rightConvexStartIdx = rightTileIndex * convexPerTile
+          const rightViaStartIdx = rightTileIndex * viasPerTile
+
+          const rightTileConvexRegions = convexRegions.slice(
+            rightConvexStartIdx,
+            rightConvexStartIdx + convexPerTile,
+          )
+          const rightTileViaRegions = viaRegions.slice(
+            rightViaStartIdx,
+            rightViaStartIdx + viasPerTile,
+          )
+          const rightTileAllRegions = [
+            ...rightTileConvexRegions,
+            ...rightTileViaRegions,
+          ]
+
+          // Boundary x-coordinate (right edge of current tile)
+          const boundaryX = tileCenterX + halfWidth
+
+          for (const yOffset of verticalPortYOffsets) {
+            const portY = tileCenterY + yOffset
+            // Point slightly inside current tile (left of boundary)
+            const pointInCurrentTile = { x: boundaryX - 0.01, y: portY }
+            // Point slightly inside right tile (right of boundary)
+            const pointInRightTile = { x: boundaryX + 0.01, y: portY }
+
+            const region1 = findRegionContainingPoint(
+              pointInCurrentTile,
+              tileAllRegions,
+            )
+            const region2 = findRegionContainingPoint(
+              pointInRightTile,
+              rightTileAllRegions,
+            )
+
+            if (region1 && region2) {
+              createPort(
+                `tile:${row}_${col}-${row}_${col + 1}:${portIdCounter++}`,
+                region1,
+                region2,
+                { x: boundaryX, y: portY },
+              )
+            }
+          }
+        }
+
+        // Check top neighbor - create ports along horizontal boundary
+        if (row + 1 < rows) {
+          const topTileIndex = (row + 1) * cols + col
+          const topConvexStartIdx = topTileIndex * convexPerTile
+          const topViaStartIdx = topTileIndex * viasPerTile
+
+          const topTileConvexRegions = convexRegions.slice(
+            topConvexStartIdx,
+            topConvexStartIdx + convexPerTile,
+          )
+          const topTileViaRegions = viaRegions.slice(
+            topViaStartIdx,
+            topViaStartIdx + viasPerTile,
+          )
+          const topTileAllRegions = [
+            ...topTileConvexRegions,
+            ...topTileViaRegions,
+          ]
+
+          // Boundary y-coordinate (top edge of current tile)
+          const boundaryY = tileCenterY + halfHeight
+
+          for (const xOffset of horizontalPortXOffsets) {
+            const portX = tileCenterX + xOffset
+            // Point slightly inside current tile (below boundary)
+            const pointInCurrentTile = { x: portX, y: boundaryY - 0.01 }
+            // Point slightly inside top tile (above boundary)
+            const pointInTopTile = { x: portX, y: boundaryY + 0.01 }
+
+            const region1 = findRegionContainingPoint(
+              pointInCurrentTile,
+              tileAllRegions,
+            )
+            const region2 = findRegionContainingPoint(
+              pointInTopTile,
+              topTileAllRegions,
+            )
+
+            if (region1 && region2) {
+              createPort(
+                `tile:${row}_${col}-${row + 1}_${col}:${portIdCounter++}`,
+                region1,
+                region2,
+                { x: portX, y: boundaryY },
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Step 6: Create ports between tile edge regions and filler regions
+  // Check both convex regions and via regions (via regions may touch tile edge when extended)
+  for (const fillerRegion of fillerRegions) {
+    // Find which tile regions (convex or via) are adjacent to this filler region
+    const tileRegions = [...convexRegions, ...viaRegions]
+    for (const tileRegion of tileRegions) {
       const sharedEdges = findSharedEdges(
-        region1.d.polygon!,
-        region2.d.polygon!,
-        clearance * 2, // tolerance slightly larger than clearance
+        tileRegion.d.polygon!,
+        fillerRegion.d.polygon!,
+        clearance * 2,
       )
 
       for (const edge of sharedEdges) {
         const portPositions = createPortsAlongEdge(edge, portPitch)
 
         for (const pos of portPositions) {
-          const port: JPort = {
-            portId: `convex:${i}-${j}:${portIdCounter++}`,
-            region1,
-            region2,
-            d: { x: pos.x, y: pos.y },
-          }
-          region1.ports.push(port)
-          region2.ports.push(port)
-          allPorts.push(port)
+          createPort(
+            `filler:${tileRegion.regionId}-${fillerRegion.regionId}:${portIdCounter++}`,
+            tileRegion,
+            fillerRegion,
+            pos,
+          )
         }
       }
     }
   }
 
-  // Step 5: Create ports between convex regions and via regions
-  // Restrict each via region to at most 4 ports (top/bottom/left/right).
-  for (const viaRegion of viaRegions) {
-    const viaCenter = viaRegion.d.center as Point
-    const candidates: ViaPortCandidate[] = []
+  // Step 7: Create ports between adjacent filler regions
+  // Only create ports if the shared edge is at least portPitch (trace width) long
+  // This prevents creating ports at corners where regions are too thin
+  for (let i = 0; i < fillerRegions.length; i++) {
+    for (let j = i + 1; j < fillerRegions.length; j++) {
+      const region1 = fillerRegions[i]
+      const region2 = fillerRegions[j]
 
+      const sharedEdges = findSharedEdges(
+        region1.d.polygon!,
+        region2.d.polygon!,
+        0.01,
+      )
+
+      for (const edge of sharedEdges) {
+        // Calculate edge length
+        const edgeLength = Math.sqrt(
+          (edge.to.x - edge.from.x) ** 2 + (edge.to.y - edge.from.y) ** 2,
+        )
+
+        // Skip if edge is shorter than trace width (portPitch)
+        if (edgeLength < portPitch) {
+          continue
+        }
+
+        const portPositions = createPortsAlongEdge(edge, portPitch)
+
+        for (const pos of portPositions) {
+          createPort(
+            `filler:${region1.regionId}-${region2.regionId}:${portIdCounter++}`,
+            region1,
+            region2,
+            pos,
+          )
+        }
+      }
+    }
+  }
+
+  // Step 8: Create ports between via regions and convex regions within each tile
+  // (Via ↔ Filler ports are already created in Step 6)
+  for (const viaRegion of viaRegions) {
     for (const convexRegion of convexRegions) {
       const sharedEdges = findSharedEdges(
         viaRegion.d.polygon!,
@@ -439,65 +1015,14 @@ export function generateConvexViaTopologyRegions(opts: {
         const portPositions = createPortsAlongEdge(edge, portPitch)
 
         for (const pos of portPositions) {
-          const dx = pos.x - viaCenter.x
-          const dy = pos.y - viaCenter.y
-          const side = classifySideFromBounds(pos, viaRegion.d.bounds)
-          const primaryDistance =
-            side === "left" || side === "right" ? Math.abs(dx) : Math.abs(dy)
-          const orthDistance =
-            side === "left" || side === "right" ? Math.abs(dy) : Math.abs(dx)
-
-          candidates.push({
+          createPort(
+            `via-convex:${viaRegion.regionId}-${convexRegion.regionId}:${portIdCounter++}`,
+            viaRegion,
             convexRegion,
-            position: pos,
-            side,
-            primaryDistance,
-            orthDistance,
-            key: toCandidateKey(convexRegion.regionId, pos),
-          })
+            pos,
+          )
         }
       }
-    }
-
-    if (candidates.length === 0) continue
-
-    const selectedCandidates: ViaPortCandidate[] = []
-    const selectedKeys = new Set<string>()
-
-    const addCandidate = (candidate: ViaPortCandidate | undefined): void => {
-      if (!candidate) return
-      if (selectedKeys.has(candidate.key)) return
-      selectedCandidates.push(candidate)
-      selectedKeys.add(candidate.key)
-    }
-
-    for (const side of ["top", "bottom", "left", "right"] as const) {
-      const sideCandidate = [...candidates]
-        .filter((candidate) => candidate.side === side)
-        .sort(compareCandidateQuality)[0]
-      addCandidate(sideCandidate)
-    }
-
-    if (selectedCandidates.length < 4) {
-      for (const candidate of [...candidates].sort(compareCandidateQuality)) {
-        addCandidate(candidate)
-        if (selectedCandidates.length >= 4) break
-      }
-    }
-
-    for (const selectedCandidate of selectedCandidates.slice(0, 4)) {
-      const port: JPort = {
-        portId: `via-convex:${viaRegion.regionId}-${selectedCandidate.convexRegion.regionId}:${portIdCounter++}`,
-        region1: viaRegion,
-        region2: selectedCandidate.convexRegion,
-        d: {
-          x: selectedCandidate.position.x,
-          y: selectedCandidate.position.y,
-        },
-      }
-      viaRegion.ports.push(port)
-      selectedCandidate.convexRegion.ports.push(port)
-      allPorts.push(port)
     }
   }
 
