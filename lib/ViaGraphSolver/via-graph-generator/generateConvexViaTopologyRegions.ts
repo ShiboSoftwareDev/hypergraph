@@ -13,16 +13,6 @@ import { createPortsAlongEdge, findSharedEdges } from "./findSharedEdges"
 const DEFAULT_PORT_PITCH = 0.4
 
 /**
- * Default tile width (mm) for via placement.
- */
-const DEFAULT_TILE_WIDTH = 3.727
-
-/**
- * Default tile height (mm) for via placement.
- */
-const DEFAULT_TILE_HEIGHT = 4.03
-
-/**
  * Default clearance (mm) around via regions for convex region computation.
  */
 const DEFAULT_CLEARANCE = 0.1
@@ -287,8 +277,14 @@ export function generateConvexViaTopologyRegions(opts: {
   viaTile: ViaTile
   tileCount: { rows: number; cols: number }
 } {
-  const tileWidth = opts.tileWidth ?? opts.tileSize ?? DEFAULT_TILE_WIDTH
-  const tileHeight = opts.tileHeight ?? opts.tileSize ?? DEFAULT_TILE_HEIGHT
+  const tileWidth = opts.tileWidth ?? opts.tileSize ?? opts.viaTile.tileWidth
+  const tileHeight = opts.tileHeight ?? opts.tileSize ?? opts.viaTile.tileHeight
+
+  if (tileWidth === undefined || tileHeight === undefined) {
+    throw new Error(
+      "tileWidth and tileHeight must be provided either in opts or in viaTile",
+    )
+  }
   const portPitch = opts.portPitch ?? DEFAULT_PORT_PITCH
   const clearance = opts.clearance ?? DEFAULT_CLEARANCE
   const concavityTolerance = opts.concavityTolerance ?? 0

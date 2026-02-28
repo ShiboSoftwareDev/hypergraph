@@ -30,6 +30,53 @@ type GraphNode = {
 
 const COORD_SCALE = 1_000_000
 const POINT_MATCH_EPS = 1e-3
+const TRACE_WIDTH = 0.15
+const CLEARANCE = 0.15
+
+function calculateTileDimensions(viaTile: ViaTile): {
+  tileWidth: number
+  tileHeight: number
+} {
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+
+  // Include all vias with their radii
+  for (const vias of Object.values(viaTile.viasByNet)) {
+    for (const via of vias) {
+      const radius = via.diameter / 2
+      minX = Math.min(minX, via.position.x - radius)
+      maxX = Math.max(maxX, via.position.x + radius)
+      minY = Math.min(minY, via.position.y - radius)
+      maxY = Math.max(maxY, via.position.y + radius)
+    }
+  }
+
+  // Include all route segment points with trace width
+  const halfTraceWidth = TRACE_WIDTH / 2
+  for (const routeSegment of viaTile.routeSegments) {
+    for (const point of routeSegment.segments) {
+      minX = Math.min(minX, point.x - halfTraceWidth)
+      maxX = Math.max(maxX, point.x + halfTraceWidth)
+      minY = Math.min(minY, point.y - halfTraceWidth)
+      maxY = Math.max(maxY, point.y + halfTraceWidth)
+    }
+  }
+
+  // Handle empty case
+  if (!Number.isFinite(minX)) {
+    return { tileWidth: 0, tileHeight: 0 }
+  }
+
+  const rawWidth = maxX - minX
+  const rawHeight = maxY - minY
+
+  return {
+    tileWidth: rawWidth + CLEARANCE,
+    tileHeight: rawHeight + CLEARANCE,
+  }
+}
 
 function normalizeCoord(value: number): number {
   return Math.round(value * COORD_SCALE) / COORD_SCALE
@@ -454,6 +501,11 @@ async function main() {
   }
   viaTile.routeSegments = routeSegments
 
+  // Calculate tile dimensions from bounds
+  const { tileWidth, tileHeight } = calculateTileDimensions(viaTile)
+  viaTile.tileWidth = tileWidth
+  viaTile.tileHeight = tileHeight
+
   await fs.mkdir(path.dirname(outputPath), { recursive: true }).catch(() => {})
   await fs.writeFile(
     outputPath,
@@ -466,7 +518,7 @@ async function main() {
     0,
   )
   console.log(
-    `Saved ${totalViaCount} vias, ${routeSegments.length} route segments across ${Object.keys(viaTile.viasByNet).length} nets to ${outputPath}`,
+    `Saved ${totalViaCount} vias, ${routeSegments.length} route segments across ${Object.keys(viaTile.viasByNet).length} nets (tileWidth: ${tileWidth.toFixed(3)}, tileHeight: ${tileHeight.toFixed(3)}) to ${outputPath}`,
   )
 }
 

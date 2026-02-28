@@ -66,11 +66,8 @@ export default () => {
     if (!entry) return null
 
     const xyConnections = extractXYConnections(entry)
-    const result = createConvexViaGraphFromXYConnections(
-      xyConnections,
-      viaTile,
-      { tileHeight: 5.171, tileWidth: 5.428 },
-    )
+    // tileWidth and tileHeight are now read from the viaTile JSON file
+    const result = createConvexViaGraphFromXYConnections(xyConnections, viaTile)
 
     return {
       graph: result,

@@ -109,7 +109,7 @@ const mean = (numbers: number[]): number | undefined => {
 // Worker code as a string that uses the built dist/index.js
 const workerCode = `
 const { parentPort, workerData } = require('worker_threads');
-const { ViaGraphSolver, createViaGraphFromXYConnections } = require(workerData.distPath);
+const { ViaGraphSolver, createConvexViaGraphFromXYConnections } = require(workerData.distPath);
 
 const { sample, sampleIndex, viaTile, quickMode } = workerData;
 
@@ -139,7 +139,7 @@ function extractXYConnections(sample) {
 function solveSample() {
   try {
     const xyConnections = extractXYConnections(sample);
-    const result = createViaGraphFromXYConnections(xyConnections, viaTile);
+    const result = createConvexViaGraphFromXYConnections(xyConnections, viaTile);
 
     const solverOpts = {
       inputGraph: {
