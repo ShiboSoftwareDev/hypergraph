@@ -74,6 +74,7 @@ export function createConvexViaGraphFromXYConnections(
   const bounds = calculateBoundsFromConnections(xyConnections)
 
   // Generate the via topology with convex regions
+  // Use tileWidth/tileHeight from opts, or fall back to viaTile's values
   const {
     regions,
     ports,
@@ -82,8 +83,8 @@ export function createConvexViaGraphFromXYConnections(
   } = generateConvexViaTopologyRegions({
     viaTile,
     bounds,
-    tileWidth: opts?.tileWidth,
-    tileHeight: opts?.tileHeight,
+    tileWidth: opts?.tileWidth ?? viaTile.tileWidth,
+    tileHeight: opts?.tileHeight ?? viaTile.tileHeight,
     tileSize: opts?.tileSize,
     portPitch: opts?.portPitch,
     clearance: opts?.clearance,

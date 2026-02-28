@@ -46,6 +46,8 @@ export type ViaByNet = Record<string, ViaData[]>
 export type ViaTile = {
   viasByNet: ViaByNet
   routeSegments: RouteSegment[]
+  tileWidth?: number
+  tileHeight?: number
 }
 
 export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {

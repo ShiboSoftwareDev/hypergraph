@@ -66,10 +66,10 @@ export default () => {
     if (!entry) return null
 
     const xyConnections = extractXYConnections(entry)
+    // tileWidth and tileHeight are now read from the viaTile JSON file
     const result = createConvexViaGraphFromXYConnections(
       xyConnections,
       viaTile3Net,
-      { tileHeight: 2.399, tileWidth: 2.408 },
     )
 
     return {

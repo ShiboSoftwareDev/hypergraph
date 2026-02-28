@@ -1,9 +1,9 @@
 import * as fs from "fs"
 import * as path from "path"
 import type { XYConnection } from "../lib/JumperGraphSolver/jumper-graph-generator/createGraphWithConnectionsFromBaseGraph"
-import { ViaGraphSolver } from "../lib/ViaGraphSolver/ViaGraphSolver"
 import type { ViaTile } from "../lib/ViaGraphSolver/ViaGraphSolver"
-import { createViaGraphFromXYConnections } from "../lib/ViaGraphSolver/via-graph-generator/createViaGraphFromXYConnections"
+import { ViaGraphSolver } from "../lib/ViaGraphSolver/ViaGraphSolver"
+import { createConvexViaGraphFromXYConnections } from "../lib/ViaGraphSolver/via-graph-generator/createConvexViaGraphFromXYConnections"
 
 // Parse command line arguments
 const args = process.argv.slice(2)
@@ -117,7 +117,7 @@ const tryToSolve = (
   error?: string
 } => {
   try {
-    const result = createViaGraphFromXYConnections(xyConnections, viaTile)
+    const result = createConvexViaGraphFromXYConnections(xyConnections, viaTile)
 
     const solverOpts: ConstructorParameters<typeof ViaGraphSolver>[0] = {
       inputGraph: {
