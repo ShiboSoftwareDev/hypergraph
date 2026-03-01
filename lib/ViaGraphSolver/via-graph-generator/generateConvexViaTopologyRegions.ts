@@ -251,6 +251,76 @@ function rectPolygonFromBounds(b: Bounds): Point[] {
 }
 
 /**
+ * Find the port positions on each side (top, bottom, left, right) of a via region polygon.
+ * Each side gets 1 port at the midpoint of the segment that defines that side's extreme.
+ *
+ * @param polygon - The via region polygon
+ * @returns Object with port positions for each side (may be null if no segment exists on that side)
+ */
+function findViaRegionSidePorts(polygon: Point[]): {
+  top: Point | null
+  bottom: Point | null
+  left: Point | null
+  right: Point | null
+} {
+  if (polygon.length < 3) {
+    return { top: null, bottom: null, left: null, right: null }
+  }
+
+  const bounds = boundsFromPolygon(polygon)
+  const tolerance = 0.001
+
+  let topPort: Point | null = null
+  let bottomPort: Point | null = null
+  let leftPort: Point | null = null
+  let rightPort: Point | null = null
+
+  // Find segments on each side of the bounding box
+  for (let i = 0; i < polygon.length; i++) {
+    const p1 = polygon[i]
+    const p2 = polygon[(i + 1) % polygon.length]
+
+    // Check if this segment is on the top edge (maxY)
+    if (
+      Math.abs(p1.y - bounds.maxY) < tolerance &&
+      Math.abs(p2.y - bounds.maxY) < tolerance
+    ) {
+      // Segment is on top edge, port at midpoint
+      topPort = { x: (p1.x + p2.x) / 2, y: bounds.maxY }
+    }
+
+    // Check if this segment is on the bottom edge (minY)
+    if (
+      Math.abs(p1.y - bounds.minY) < tolerance &&
+      Math.abs(p2.y - bounds.minY) < tolerance
+    ) {
+      // Segment is on bottom edge, port at midpoint
+      bottomPort = { x: (p1.x + p2.x) / 2, y: bounds.minY }
+    }
+
+    // Check if this segment is on the left edge (minX)
+    if (
+      Math.abs(p1.x - bounds.minX) < tolerance &&
+      Math.abs(p2.x - bounds.minX) < tolerance
+    ) {
+      // Segment is on left edge, port at midpoint
+      leftPort = { x: bounds.minX, y: (p1.y + p2.y) / 2 }
+    }
+
+    // Check if this segment is on the right edge (maxX)
+    if (
+      Math.abs(p1.x - bounds.maxX) < tolerance &&
+      Math.abs(p2.x - bounds.maxX) < tolerance
+    ) {
+      // Segment is on right edge, port at midpoint
+      rightPort = { x: bounds.maxX, y: (p1.y + p2.y) / 2 }
+    }
+  }
+
+  return { top: topPort, bottom: bottomPort, left: leftPort, right: rightPort }
+}
+
+/**
  * Extend via region polygon to tile boundary when extremely close (< threshold).
  * Only extends polygon edges that are within threshold of the tile boundary.
  * This prevents thin convex regions from being created in small gaps.
@@ -939,6 +1009,9 @@ export function generateConvexViaTopologyRegions(opts: {
   // Check both convex regions and via regions (via regions may touch tile edge when extended)
   // Ports are placed at the CENTER of each filler strip to prevent diagonal routes
   // Track port positions per filler region to ensure minimum spacing of portPitch
+  //
+  // Instead of using findSharedEdges (which can fail with short tile edges),
+  // we directly check for bounds adjacency based on the filler region's edge.
   const fillerPortPositions = new Map<string, Array<{ x: number; y: number }>>()
   for (const fillerRegion of fillerRegions) {
     fillerPortPositions.set(fillerRegion.regionId, [])
@@ -954,110 +1027,124 @@ export function generateConvexViaTopologyRegions(opts: {
     const numPorts = Math.max(1, Math.floor(stripSize / portPitch))
     const actualPitch = stripSize / numPorts
 
+    // Determine which edge of the filler region is adjacent to the tile grid
+    // based on the filler region's position relative to the grid
+    const adjacencyTolerance = clearance * 2
+    const isTopFiller = fillerRegion.regionId.startsWith("filler:top:")
+    const isBottomFiller = fillerRegion.regionId.startsWith("filler:bottom:")
+    const isLeftFiller = fillerRegion.regionId.startsWith("filler:left:")
+    const isRightFiller = fillerRegion.regionId.startsWith("filler:right:")
+
     // Find which tile regions (convex or via) are adjacent to this filler region
     const tileRegions = [...convexRegions, ...viaRegions]
     for (const tileRegion of tileRegions) {
-      const sharedEdges = findSharedEdges(
-        tileRegion.d.polygon!,
-        fillerRegion.d.polygon!,
-        clearance * 2,
-      )
+      const tileBounds = tileRegion.d.bounds
+      const eps = 0.001
 
-      for (const edge of sharedEdges) {
-        // Determine which filler boundary this edge is on and snap to it
-        // This ensures ports from different tile regions at the same boundary
-        // are at exactly the same position
-        const edgeMidY = (edge.from.y + edge.to.y) / 2
-        const edgeMidX = (edge.from.x + edge.to.x) / 2
+      // Check if the tile region is adjacent to this filler region
+      // based on bounds overlap and edge proximity
+      let isAdjacent = false
+      let edgeX: number | null = null
+      let edgeY: number | null = null
 
-        let edgeY: number
-        let edgeX: number
+      if (isHorizontalStrip) {
+        // For horizontal strips (top/bottom), check X overlap and Y adjacency
+        const overlapMinX = Math.max(fillerBounds.minX, tileBounds.minX)
+        const overlapMaxX = Math.min(fillerBounds.maxX, tileBounds.maxX)
+        const hasXOverlap = overlapMaxX > overlapMinX + eps
+
+        if (hasXOverlap) {
+          if (isTopFiller) {
+            // Top filler: tile should be adjacent to filler's bottom edge (minY)
+            isAdjacent =
+              Math.abs(tileBounds.maxY - fillerBounds.minY) < adjacencyTolerance
+            edgeY = fillerBounds.minY
+          } else if (isBottomFiller) {
+            // Bottom filler: tile should be adjacent to filler's top edge (maxY)
+            isAdjacent =
+              Math.abs(tileBounds.minY - fillerBounds.maxY) < adjacencyTolerance
+            edgeY = fillerBounds.maxY
+          }
+        }
+      } else {
+        // For vertical strips (left/right), check Y overlap and X adjacency
+        const overlapMinY = Math.max(fillerBounds.minY, tileBounds.minY)
+        const overlapMaxY = Math.min(fillerBounds.maxY, tileBounds.maxY)
+        const hasYOverlap = overlapMaxY > overlapMinY + eps
+
+        if (hasYOverlap) {
+          if (isLeftFiller) {
+            // Left filler: tile should be adjacent to filler's right edge (maxX)
+            isAdjacent =
+              Math.abs(tileBounds.minX - fillerBounds.maxX) < adjacencyTolerance
+            edgeX = fillerBounds.maxX
+          } else if (isRightFiller) {
+            // Right filler: tile should be adjacent to filler's left edge (minX)
+            isAdjacent =
+              Math.abs(tileBounds.maxX - fillerBounds.minX) < adjacencyTolerance
+            edgeX = fillerBounds.minX
+          }
+        }
+      }
+
+      if (!isAdjacent) continue
+
+      // Create ports based on the overlap region between filler and tile
+      // Calculate the overlap region first
+      let overlapMin: number
+      let overlapMax: number
+      if (isHorizontalStrip) {
+        overlapMin = Math.max(fillerBounds.minX, tileBounds.minX)
+        overlapMax = Math.min(fillerBounds.maxX, tileBounds.maxX)
+      } else {
+        overlapMin = Math.max(fillerBounds.minY, tileBounds.minY)
+        overlapMax = Math.min(fillerBounds.maxY, tileBounds.maxY)
+      }
+
+      const overlapSize = overlapMax - overlapMin
+      if (overlapSize < eps) continue
+
+      // Calculate number of ports based on overlap size, ensuring at least 1 port
+      const overlapNumPorts = Math.max(1, Math.floor(overlapSize / portPitch))
+      const overlapActualPitch = overlapSize / overlapNumPorts
+
+      for (let i = 0; i < overlapNumPorts; i++) {
+        let pos: { x: number; y: number }
 
         if (isHorizontalStrip) {
-          // Snap Y to the nearest filler boundary (top or bottom)
-          const distToMinY = Math.abs(edgeMidY - fillerBounds.minY)
-          const distToMaxY = Math.abs(edgeMidY - fillerBounds.maxY)
-          edgeY =
-            distToMinY < distToMaxY ? fillerBounds.minY : fillerBounds.maxY
-          edgeX = edgeMidX
+          // Port X is centered within each segment of the overlap region
+          const x = overlapMin + (i + 0.5) * overlapActualPitch
+          pos = { x, y: edgeY! }
         } else {
-          // Snap X to the nearest filler boundary (left or right)
-          const distToMinX = Math.abs(edgeMidX - fillerBounds.minX)
-          const distToMaxX = Math.abs(edgeMidX - fillerBounds.maxX)
-          edgeX =
-            distToMinX < distToMaxX ? fillerBounds.minX : fillerBounds.maxX
-          edgeY = edgeMidY
+          // Port Y is centered within each segment of the overlap region
+          const y = overlapMin + (i + 0.5) * overlapActualPitch
+          pos = { x: edgeX!, y }
         }
 
-        // Get the tile region's bounds to filter port positions
-        const tileBounds = tileRegion.d.bounds
-
-        // Create ports at aligned positions within the filler strip
-        // BUT only at positions that are within the tile region's bounds
-        // Use a small epsilon for floating point comparison, not the clearance
-        const eps = 0.001
-        for (let i = 0; i < numPorts; i++) {
-          let pos: { x: number; y: number }
-
-          if (isHorizontalStrip) {
-            // Port X is centered within each segment of the filler strip
-            let x = fillerBounds.minX + (i + 0.5) * actualPitch
-
-            // Clamp X to be within the overlap of filler and tile bounds
-            const overlapMinX = Math.max(fillerBounds.minX, tileBounds.minX)
-            const overlapMaxX = Math.min(fillerBounds.maxX, tileBounds.maxX)
-
-            // Skip if no overlap
-            if (overlapMaxX < overlapMinX + eps) {
-              continue
-            }
-
-            // Clamp to overlap region
-            x = Math.max(overlapMinX + eps, Math.min(overlapMaxX - eps, x))
-            pos = { x, y: edgeY }
-          } else {
-            // Port Y is centered within each segment of the filler strip
-            let y = fillerBounds.minY + (i + 0.5) * actualPitch
-
-            // Clamp Y to be within the overlap of filler and tile bounds
-            const overlapMinY = Math.max(fillerBounds.minY, tileBounds.minY)
-            const overlapMaxY = Math.min(fillerBounds.maxY, tileBounds.maxY)
-
-            // Skip if no overlap
-            if (overlapMaxY < overlapMinY + eps) {
-              continue
-            }
-
-            // Clamp to overlap region
-            y = Math.max(overlapMinY + eps, Math.min(overlapMaxY - eps, y))
-            pos = { x: edgeX, y }
-          }
-
-          // Check if this position is too close to an existing port in this filler region
-          const existingPositions = fillerPortPositions.get(
-            fillerRegion.regionId,
-          )!
-          const tooClose = existingPositions.some((existing) => {
-            const dist = Math.sqrt(
-              (pos.x - existing.x) ** 2 + (pos.y - existing.y) ** 2,
-            )
-            return dist < portPitch
-          })
-
-          if (tooClose) {
-            continue
-          }
-
-          // Track this position
-          existingPositions.push(pos)
-
-          createPort(
-            `filler:${tileRegion.regionId}-${fillerRegion.regionId}:${portIdCounter++}`,
-            tileRegion,
-            fillerRegion,
-            pos,
+        // Check if this position is too close to an existing port in this filler region
+        const existingPositions = fillerPortPositions.get(
+          fillerRegion.regionId,
+        )!
+        const tooClose = existingPositions.some((existing) => {
+          const dist = Math.sqrt(
+            (pos.x - existing.x) ** 2 + (pos.y - existing.y) ** 2,
           )
+          return dist < portPitch
+        })
+
+        if (tooClose) {
+          continue
         }
+
+        // Track this position
+        existingPositions.push(pos)
+
+        createPort(
+          `filler:${tileRegion.regionId}-${fillerRegion.regionId}:${portIdCounter++}`,
+          tileRegion,
+          fillerRegion,
+          pos,
+        )
       }
     }
   }
@@ -1101,26 +1188,101 @@ export function generateConvexViaTopologyRegions(opts: {
     }
   }
 
-  // Step 8: Create ports between via regions and convex regions within each tile
-  // (Via ↔ Filler ports are already created in Step 6)
+  // Step 8: Create ports between via regions and adjacent regions (convex or filler)
+  // Each via region gets exactly 1 port on each side (top, bottom, left, right)
+  // at the midpoint of the segment that defines that side's extreme
+  // Search all non-via regions (convex + filler) for adjacency
+  const nonViaRegions = allRegions.filter((r) => !r.d.isViaRegion)
+  const createdViaSidePorts = new Set<string>() // Track "viaRegionId:side" to avoid duplicates
+
   for (const viaRegion of viaRegions) {
-    for (const convexRegion of convexRegions) {
-      const sharedEdges = findSharedEdges(
-        viaRegion.d.polygon!,
-        convexRegion.d.polygon!,
-        clearance * 2,
-      )
+    const sidePorts = findViaRegionSidePorts(viaRegion.d.polygon!)
+    const viaBounds = viaRegion.d.bounds
 
-      for (const edge of sharedEdges) {
-        const portPositions = createPortsAlongEdge(edge, portPitch)
+    // For each side, find adjacent regions and create a single port
+    const sides = ["top", "bottom", "left", "right"] as const
+    for (const side of sides) {
+      const portPos = sidePorts[side]
+      if (!portPos) continue
 
-        for (const pos of portPositions) {
+      // Skip if we already created a port for this via region side
+      const sideKey = `${viaRegion.regionId}:${side}`
+      if (createdViaSidePorts.has(sideKey)) continue
+
+      // Find adjacent region by checking bounds adjacency and containment of test point
+      // We look for a region that:
+      // 1. Has bounds adjacent to the via region's side
+      // 2. Contains a test point just outside the via region on that side
+      const adjacencyTolerance = 0.2 // Allow small gap between regions (clearance)
+      const testOffset = adjacencyTolerance // Test point must be beyond any clearance gap
+
+      let testPoint: Point
+      switch (side) {
+        case "top":
+          testPoint = { x: portPos.x, y: viaBounds.maxY + testOffset }
+          break
+        case "bottom":
+          testPoint = { x: portPos.x, y: viaBounds.minY - testOffset }
+          break
+        case "left":
+          testPoint = { x: viaBounds.minX - testOffset, y: portPos.y }
+          break
+        case "right":
+          testPoint = { x: viaBounds.maxX + testOffset, y: portPos.y }
+          break
+      }
+
+      for (const adjacentRegion of nonViaRegions) {
+        const adjBounds = adjacentRegion.d.bounds
+
+        // Check if bounds are potentially adjacent on this side
+        let boundsAdjacent = false
+        switch (side) {
+          case "top":
+            // Adjacent region should be above (its minY near our maxY)
+            boundsAdjacent =
+              Math.abs(adjBounds.minY - viaBounds.maxY) < adjacencyTolerance &&
+              adjBounds.minX < portPos.x &&
+              adjBounds.maxX > portPos.x
+            break
+          case "bottom":
+            // Adjacent region should be below (its maxY near our minY)
+            boundsAdjacent =
+              Math.abs(adjBounds.maxY - viaBounds.minY) < adjacencyTolerance &&
+              adjBounds.minX < portPos.x &&
+              adjBounds.maxX > portPos.x
+            break
+          case "left":
+            // Adjacent region should be to the left (its maxX near our minX)
+            boundsAdjacent =
+              Math.abs(adjBounds.maxX - viaBounds.minX) < adjacencyTolerance &&
+              adjBounds.minY < portPos.y &&
+              adjBounds.maxY > portPos.y
+            break
+          case "right":
+            // Adjacent region should be to the right (its minX near our maxX)
+            boundsAdjacent =
+              Math.abs(adjBounds.minX - viaBounds.maxX) < adjacencyTolerance &&
+              adjBounds.minY < portPos.y &&
+              adjBounds.maxY > portPos.y
+            break
+        }
+
+        if (!boundsAdjacent) continue
+
+        // Verify the test point is inside the adjacent region's polygon
+        if (
+          adjacentRegion.d.polygon &&
+          pointInPolygon(testPoint, adjacentRegion.d.polygon)
+        ) {
           createPort(
-            `via-convex:${viaRegion.regionId}-${convexRegion.regionId}:${portIdCounter++}`,
+            `via-side:${viaRegion.regionId}:${side}:${portIdCounter++}`,
             viaRegion,
-            convexRegion,
-            pos,
+            adjacentRegion,
+            portPos,
           )
+          createdViaSidePorts.add(sideKey)
+          break // Only one port per side per via region
         }
       }
     }
