@@ -49,14 +49,18 @@ function closestPointOnPolygonEdge(
  *
  * Only considers non-pad, non-throughJumper, non-connectionRegion regions
  * that have polygon data.
+ *
+ * For convex topologies (detected by presence of filler regions), only
+ * connects to filler regions to avoid isolated tiny convex regions inside
+ * the tile grid.
  */
-export const findBoundaryRegionForPolygons = (opts: {
-  x: number
-  y: number
-  regions: JRegion[]
-  onlyFillerRegions?: boolean
-}): BoundaryRegionResult | null => {
-  const { x, y, regions, onlyFillerRegions = false } = opts
+export const findBoundaryRegionForPolygons = (
+  x: number,
+  y: number,
+  regions: JRegion[],
+): BoundaryRegionResult | null => {
+  // Check if this is a convex topology by looking for filler regions
+  const hasFillerRegions = regions.some((r) => r.regionId.startsWith("filler:"))
 
   let closestRegion: JRegion | null = null
   let closestDistance = Infinity
@@ -70,9 +74,9 @@ export const findBoundaryRegionForPolygons = (opts: {
     )
       continue
 
-    // When using convex topology, only connect to filler regions to avoid
+    // For convex topologies, only connect to filler regions to avoid
     // isolated tiny convex regions inside the tile grid.
-    if (onlyFillerRegions && !region.regionId.startsWith("filler:")) continue
+    if (hasFillerRegions && !region.regionId.startsWith("filler:")) continue
 
     const polygon = region.d.polygon
     if (!polygon || polygon.length < 3) continue

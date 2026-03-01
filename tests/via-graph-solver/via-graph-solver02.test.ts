@@ -12,31 +12,28 @@ test("via-graph-solver02: solve via topology with 4 connections", () => {
   })
 
   // 4 connections crossing diagonally — each needs a different via region
-  const graphWithConnections = createViaGraphWithConnections({
-    baseGraph,
-    xyConnections: [
-      {
-        start: { x: -2.5, y: 1.0 },
-        end: { x: 2.5, y: -1.0 },
-        connectionId: "A",
-      },
-      {
-        start: { x: 0, y: 2.5 },
-        end: { x: -2.5, y: -1.0 },
-        connectionId: "B",
-      },
-      {
-        start: { x: 0, y: -2.5 },
-        end: { x: 2.5, y: 1.0 },
-        connectionId: "C",
-      },
-      {
-        start: { x: -2.5, y: -2.5 },
-        end: { x: 2.5, y: 2.5 },
-        connectionId: "D",
-      },
-    ],
-  })
+  const graphWithConnections = createViaGraphWithConnections(baseGraph, [
+    {
+      start: { x: -2.5, y: 1.0 },
+      end: { x: 2.5, y: -1.0 },
+      connectionId: "A",
+    },
+    {
+      start: { x: 0, y: 2.5 },
+      end: { x: -2.5, y: -1.0 },
+      connectionId: "B",
+    },
+    {
+      start: { x: 0, y: -2.5 },
+      end: { x: 2.5, y: 1.0 },
+      connectionId: "C",
+    },
+    {
+      start: { x: -2.5, y: -2.5 },
+      end: { x: 2.5, y: 2.5 },
+      connectionId: "D",
+    },
+  ])
 
   const solver = new ViaGraphSolver({
     inputGraph: {

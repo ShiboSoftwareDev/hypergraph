@@ -9,21 +9,18 @@ const baseGraph = generateViaTopologyRegions(viaTile, {
   idPrefix: "via",
 })
 
-const graphWithConnections = createViaGraphWithConnections({
-  baseGraph,
-  xyConnections: [
-    {
-      start: { x: -2.5, y: 1.0 },
-      end: { x: 2.5, y: 1.0 },
-      connectionId: "P1",
-    },
-    {
-      start: { x: -2.5, y: -1.0 },
-      end: { x: 2.5, y: -1.0 },
-      connectionId: "P2",
-    },
-  ],
-})
+const graphWithConnections = createViaGraphWithConnections(baseGraph, [
+  {
+    start: { x: -2.5, y: 1.0 },
+    end: { x: 2.5, y: 1.0 },
+    connectionId: "P1",
+  },
+  {
+    start: { x: -2.5, y: -1.0 },
+    end: { x: 2.5, y: -1.0 },
+    connectionId: "P2",
+  },
+])
 
 export default () => (
   <GenericSolverDebugger

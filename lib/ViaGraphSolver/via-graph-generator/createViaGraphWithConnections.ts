@@ -20,16 +20,11 @@ export type ViaGraphWithConnections = JumperGraph & {
  * Uses polygon-edge proximity (not bounding-box proximity) to find the correct
  * boundary region for each connection endpoint. This is necessary because the
  * via topology's polygon regions have overlapping bounding boxes.
- *
- * @param opts.onlyFillerRegions - When true, only connect to filler regions.
- *   This is used with convex topology to avoid isolated tiny convex regions.
  */
-export const createViaGraphWithConnections = (opts: {
-  baseGraph: JumperGraph
-  xyConnections: XYConnection[]
-  onlyFillerRegions?: boolean
-}): ViaGraphWithConnections => {
-  const { baseGraph, xyConnections, onlyFillerRegions = false } = opts
+export const createViaGraphWithConnections = (
+  baseGraph: JumperGraph,
+  xyConnections: XYConnection[],
+): ViaGraphWithConnections => {
   const regions: JRegion[] = [...baseGraph.regions]
   const ports: JPort[] = [...baseGraph.ports]
   const connections: Connection[] = []
@@ -51,12 +46,11 @@ export const createViaGraphWithConnections = (opts: {
     )
     regions.push(endRegion)
 
-    const startBoundary = findBoundaryRegionForPolygons({
-      x: start.x,
-      y: start.y,
-      regions: baseGraph.regions,
-      onlyFillerRegions,
-    })
+    const startBoundary = findBoundaryRegionForPolygons(
+      start.x,
+      start.y,
+      baseGraph.regions,
+    )
     if (startBoundary) {
       const startPort = createConnectionPort(
         `conn:${connectionId}:start-port`,
@@ -67,12 +61,11 @@ export const createViaGraphWithConnections = (opts: {
       ports.push(startPort)
     }
 
-    const endBoundary = findBoundaryRegionForPolygons({
-      x: end.x,
-      y: end.y,
-      regions: baseGraph.regions,
-      onlyFillerRegions,
-    })
+    const endBoundary = findBoundaryRegionForPolygons(
+      end.x,
+      end.y,
+      baseGraph.regions,
+    )
     if (endBoundary) {
       const endPort = createConnectionPort(
         `conn:${connectionId}:end-port`,
