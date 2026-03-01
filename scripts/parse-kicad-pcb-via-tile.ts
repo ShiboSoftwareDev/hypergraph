@@ -3,6 +3,8 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import type { ViaTile } from "../lib/ViaGraphSolver/ViaGraphSolver"
+import { writeViaTopologySvg } from "./generate-via-topology"
+import { writeViaTracesSvg } from "./generate-via-traces-svg"
 
 type Point = {
   x: number
@@ -97,9 +99,10 @@ function sanitizeIdPart(input: string): string {
 function parseNetTable(pcbText: string): Map<number, string> {
   const netById = new Map<number, string>()
   const netRe = /^\s*\(net\s+(\d+)\s+"([^"]*)"\)\s*$/gm
-  let match: RegExpExecArray | null
-  while ((match = netRe.exec(pcbText)) !== null) {
+  let match: RegExpExecArray | null = netRe.exec(pcbText)
+  while (match !== null) {
     netById.set(Number(match[1]), match[2])
+    match = netRe.exec(pcbText)
   }
   return netById
 }
@@ -513,6 +516,13 @@ async function main() {
     "utf8",
   )
 
+  const outputDir = path.dirname(outputPath)
+  const tileBaseName = path.basename(outputPath, ".json")
+  const topologyPath = path.join(outputDir, `${tileBaseName}-topology.svg`)
+  const tracesPath = path.join(outputDir, `${tileBaseName}-traces.svg`)
+  await writeViaTopologySvg(viaTile, topologyPath)
+  await writeViaTracesSvg(viaTile, tracesPath)
+
   const totalViaCount = Object.values(viaTile.viasByNet).reduce(
     (sum, vias) => sum + vias.length,
     0,
@@ -520,6 +530,8 @@ async function main() {
   console.log(
     `Saved ${totalViaCount} vias, ${routeSegments.length} route segments across ${Object.keys(viaTile.viasByNet).length} nets (tileWidth: ${tileWidth.toFixed(3)}, tileHeight: ${tileHeight.toFixed(3)}) to ${outputPath}`,
   )
+  console.log(`Written ${topologyPath}`)
+  console.log(`Written ${tracesPath}`)
 }
 
 main().catch((error: unknown) => {

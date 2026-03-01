@@ -2,14 +2,20 @@
 
 import fs from "node:fs/promises"
 import path from "node:path"
+import { fileURLToPath } from "node:url"
 import type { ViaTile } from "../lib/ViaGraphSolver/ViaGraphSolver"
 
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
 const DEFAULT_INPUT_PATH = path.join(
+  SCRIPT_DIR,
+  "..",
   "assets",
   "ViaGraphSolver",
   "via-tile.json",
 )
 const DEFAULT_OUTPUT_PATH = path.join(
+  SCRIPT_DIR,
+  "..",
   "assets",
   "ViaGraphSolver",
   "via-traces.svg",
@@ -55,10 +61,31 @@ function toRgba(hex: string, alpha: number): string {
 }
 
 async function main() {
-  const inputPath = process.argv[2] ?? DEFAULT_INPUT_PATH
-  const outputPath = process.argv[3] ?? DEFAULT_OUTPUT_PATH
+  const inputArg = process.argv[2]
+  const outputArg = process.argv[3]
+  const inputPath = inputArg
+    ? path.isAbsolute(inputArg)
+      ? inputArg
+      : path.resolve(process.cwd(), inputArg)
+    : DEFAULT_INPUT_PATH
+  const outputPath = outputArg
+    ? path.isAbsolute(outputArg)
+      ? outputArg
+      : path.resolve(process.cwd(), outputArg)
+    : DEFAULT_OUTPUT_PATH
 
   const viaTile: ViaTile = JSON.parse(await fs.readFile(inputPath, "utf8"))
+  const { traceCount, viaCount } = await writeViaTracesSvg(viaTile, outputPath)
+
+  console.log(
+    `Saved ${traceCount} traces and ${viaCount} vias to ${outputPath} (trace width ${TRACE_WIDTH})`,
+  )
+}
+
+export async function writeViaTracesSvg(
+  viaTile: ViaTile,
+  outputPath: string,
+): Promise<{ traceCount: number; viaCount: number }> {
   const traces = viaTile.routeSegments.filter(
     (route) => route.segments && route.segments.length >= 2,
   )
@@ -151,13 +178,12 @@ async function main() {
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true })
   await fs.writeFile(outputPath, `${svg}\n`, "utf8")
-
-  console.log(
-    `Saved ${traces.length} traces and ${vias.length} vias to ${outputPath} (trace width ${TRACE_WIDTH})`,
-  )
+  return { traceCount: traces.length, viaCount: vias.length }
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error))
-  process.exit(1)
-})
+if (import.meta.main) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exit(1)
+  })
+}
