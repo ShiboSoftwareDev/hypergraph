@@ -95,6 +95,8 @@ export function createConvexViaGraphFromXYConnections(
   const baseGraph: JumperGraph = { regions, ports }
 
   // Add connections to the graph
+  // Note: findBoundaryRegionForPolygons auto-detects convex topology by checking
+  // for filler regions and only connects to them (avoiding tiny isolated convex regions)
   const graphWithConnections = createViaGraphWithConnections(
     baseGraph,
     xyConnections,

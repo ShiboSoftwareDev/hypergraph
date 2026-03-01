@@ -46,11 +46,11 @@ export const createViaGraphWithConnections = (
     )
     regions.push(endRegion)
 
-    const startBoundary = findBoundaryRegionForPolygons(
-      start.x,
-      start.y,
-      baseGraph.regions,
-    )
+    const startBoundary = findBoundaryRegionForPolygons({
+      x: start.x,
+      y: start.y,
+      regions: baseGraph.regions,
+    })
     if (startBoundary) {
       const startPort = createConnectionPort(
         `conn:${connectionId}:start-port`,
@@ -61,11 +61,11 @@ export const createViaGraphWithConnections = (
       ports.push(startPort)
     }
 
-    const endBoundary = findBoundaryRegionForPolygons(
-      end.x,
-      end.y,
-      baseGraph.regions,
-    )
+    const endBoundary = findBoundaryRegionForPolygons({
+      x: end.x,
+      y: end.y,
+      regions: baseGraph.regions,
+    })
     if (endBoundary) {
       const endPort = createConnectionPort(
         `conn:${connectionId}:end-port`,

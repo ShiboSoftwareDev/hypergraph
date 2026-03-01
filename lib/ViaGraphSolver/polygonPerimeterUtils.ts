@@ -12,6 +12,7 @@ type Point = { x: number; y: number }
 /**
  * Check if two 2D line segments intersect (excluding shared endpoints).
  * Uses the cross product method for robust intersection detection.
+ * Also detects T-intersections where one segment's endpoint lies on the other segment.
  */
 function lineSegmentsIntersect(
   p1: Point,
@@ -42,9 +43,53 @@ function lineSegmentsIntersect(
   const d3 = cross(p1, p2, p3)
   const d4 = cross(p1, p2, p4)
 
-  // Check if segments straddle each other
+  // Check if segments straddle each other (proper crossing)
   if (d1 * d2 < 0 && d3 * d4 < 0) {
     return true
+  }
+
+  // Check for T-intersections: one segment's endpoint lies ON the other segment
+  // This happens when one cross product is ~0 and the point is within segment bounds
+  const pointOnSegment = (
+    point: Point,
+    segStart: Point,
+    segEnd: Point,
+    crossProduct: number,
+  ) => {
+    if (Math.abs(crossProduct) > eps) return false
+    // Point is on the line, check if it's within segment bounds
+    const minX = Math.min(segStart.x, segEnd.x) - eps
+    const maxX = Math.max(segStart.x, segEnd.x) + eps
+    const minY = Math.min(segStart.y, segEnd.y) - eps
+    const maxY = Math.max(segStart.y, segEnd.y) + eps
+    return (
+      point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY
+    )
+  }
+
+  // Check if p1 or p2 lies on segment p3-p4 (but not at endpoints, already checked)
+  if (pointOnSegment(p1, p3, p4, d1)) {
+    // p1 is on segment p3-p4, check it's not at the endpoints
+    if (!pointsCoincident(p1, p3) && !pointsCoincident(p1, p4)) {
+      return true
+    }
+  }
+  if (pointOnSegment(p2, p3, p4, d2)) {
+    if (!pointsCoincident(p2, p3) && !pointsCoincident(p2, p4)) {
+      return true
+    }
+  }
+
+  // Check if p3 or p4 lies on segment p1-p2 (but not at endpoints)
+  if (pointOnSegment(p3, p1, p2, d3)) {
+    if (!pointsCoincident(p3, p1) && !pointsCoincident(p3, p2)) {
+      return true
+    }
+  }
+  if (pointOnSegment(p4, p1, p2, d4)) {
+    if (!pointsCoincident(p4, p1) && !pointsCoincident(p4, p2)) {
+      return true
+    }
   }
 
   return false

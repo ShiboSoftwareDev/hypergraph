@@ -184,6 +184,25 @@ export class ViaGraphSolver extends HyperGraphSolver<JRegion, JPort> {
     return crossings * this.crossingPenalty + crossings * this.crossingPenaltySq
   }
 
+  override isRipRequiredForPortUsage(
+    region: JRegion,
+    _port1: JPort,
+    _port2: JPort,
+  ): boolean {
+    // Via regions are exclusive - if the region has any assignment from a
+    // different connection, using it requires ripping. This ensures the solver
+    // properly considers via region exclusivity during pathfinding.
+    if (region.d.isViaRegion) {
+      const assignments = region.assignments ?? []
+      return assignments.some(
+        (a) =>
+          a.connection.mutuallyConnectedNetworkId !==
+          this.currentConnection!.mutuallyConnectedNetworkId,
+      )
+    }
+    return false
+  }
+
   override getRipsRequiredForPortUsage(
     region: JRegion,
     port1: JPort,

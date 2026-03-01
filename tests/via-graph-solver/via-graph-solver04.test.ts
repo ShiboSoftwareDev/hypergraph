@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphWithConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphWithConnections"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 
 test("via-graph-solver04: 4 connections one per side (saturated graph)", () => {
   const baseGraph = generateViaTopologyRegions(viaTile, {
