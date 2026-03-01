@@ -937,7 +937,23 @@ export function generateConvexViaTopologyRegions(opts: {
 
   // Step 6: Create ports between tile edge regions and filler regions
   // Check both convex regions and via regions (via regions may touch tile edge when extended)
+  // Ports are placed at the CENTER of each filler strip to prevent diagonal routes
+  // Track port positions per filler region to ensure minimum spacing of portPitch
+  const fillerPortPositions = new Map<string, Array<{ x: number; y: number }>>()
   for (const fillerRegion of fillerRegions) {
+    fillerPortPositions.set(fillerRegion.regionId, [])
+    const fillerBounds = fillerRegion.d.bounds
+    const stripWidth = fillerBounds.maxX - fillerBounds.minX
+    const stripHeight = fillerBounds.maxY - fillerBounds.minY
+    const isHorizontalStrip = stripWidth > stripHeight
+
+    // Calculate the number of ports and their positions along the filler strip
+    // For horizontal strips (top/bottom): ports at evenly-spaced X positions
+    // For vertical strips (left/right): ports at evenly-spaced Y positions
+    const stripSize = isHorizontalStrip ? stripWidth : stripHeight
+    const numPorts = Math.max(1, Math.floor(stripSize / portPitch))
+    const actualPitch = stripSize / numPorts
+
     // Find which tile regions (convex or via) are adjacent to this filler region
     const tileRegions = [...convexRegions, ...viaRegions]
     for (const tileRegion of tileRegions) {
@@ -948,9 +964,93 @@ export function generateConvexViaTopologyRegions(opts: {
       )
 
       for (const edge of sharedEdges) {
-        const portPositions = createPortsAlongEdge(edge, portPitch)
+        // Determine which filler boundary this edge is on and snap to it
+        // This ensures ports from different tile regions at the same boundary
+        // are at exactly the same position
+        const edgeMidY = (edge.from.y + edge.to.y) / 2
+        const edgeMidX = (edge.from.x + edge.to.x) / 2
 
-        for (const pos of portPositions) {
+        let edgeY: number
+        let edgeX: number
+
+        if (isHorizontalStrip) {
+          // Snap Y to the nearest filler boundary (top or bottom)
+          const distToMinY = Math.abs(edgeMidY - fillerBounds.minY)
+          const distToMaxY = Math.abs(edgeMidY - fillerBounds.maxY)
+          edgeY =
+            distToMinY < distToMaxY ? fillerBounds.minY : fillerBounds.maxY
+          edgeX = edgeMidX
+        } else {
+          // Snap X to the nearest filler boundary (left or right)
+          const distToMinX = Math.abs(edgeMidX - fillerBounds.minX)
+          const distToMaxX = Math.abs(edgeMidX - fillerBounds.maxX)
+          edgeX =
+            distToMinX < distToMaxX ? fillerBounds.minX : fillerBounds.maxX
+          edgeY = edgeMidY
+        }
+
+        // Get the tile region's bounds to filter port positions
+        const tileBounds = tileRegion.d.bounds
+
+        // Create ports at aligned positions within the filler strip
+        // BUT only at positions that are within the tile region's bounds
+        // Use a small epsilon for floating point comparison, not the clearance
+        const eps = 0.001
+        for (let i = 0; i < numPorts; i++) {
+          let pos: { x: number; y: number }
+
+          if (isHorizontalStrip) {
+            // Port X is centered within each segment of the filler strip
+            let x = fillerBounds.minX + (i + 0.5) * actualPitch
+
+            // Clamp X to be within the overlap of filler and tile bounds
+            const overlapMinX = Math.max(fillerBounds.minX, tileBounds.minX)
+            const overlapMaxX = Math.min(fillerBounds.maxX, tileBounds.maxX)
+
+            // Skip if no overlap
+            if (overlapMaxX < overlapMinX + eps) {
+              continue
+            }
+
+            // Clamp to overlap region
+            x = Math.max(overlapMinX + eps, Math.min(overlapMaxX - eps, x))
+            pos = { x, y: edgeY }
+          } else {
+            // Port Y is centered within each segment of the filler strip
+            let y = fillerBounds.minY + (i + 0.5) * actualPitch
+
+            // Clamp Y to be within the overlap of filler and tile bounds
+            const overlapMinY = Math.max(fillerBounds.minY, tileBounds.minY)
+            const overlapMaxY = Math.min(fillerBounds.maxY, tileBounds.maxY)
+
+            // Skip if no overlap
+            if (overlapMaxY < overlapMinY + eps) {
+              continue
+            }
+
+            // Clamp to overlap region
+            y = Math.max(overlapMinY + eps, Math.min(overlapMaxY - eps, y))
+            pos = { x: edgeX, y }
+          }
+
+          // Check if this position is too close to an existing port in this filler region
+          const existingPositions = fillerPortPositions.get(
+            fillerRegion.regionId,
+          )!
+          const tooClose = existingPositions.some((existing) => {
+            const dist = Math.sqrt(
+              (pos.x - existing.x) ** 2 + (pos.y - existing.y) ** 2,
+            )
+            return dist < portPitch
+          })
+
+          if (tooClose) {
+            continue
+          }
+
+          // Track this position
+          existingPositions.push(pos)
+
           createPort(
             `filler:${tileRegion.regionId}-${fillerRegion.regionId}:${portIdCounter++}`,
             tileRegion,
