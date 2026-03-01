@@ -96,11 +96,11 @@ export function createConvexViaGraphFromXYConnections(
 
   // Add connections to the graph
   // Use onlyFillerRegions to avoid connecting to tiny isolated convex regions
-  const graphWithConnections = createViaGraphWithConnections(
+  const graphWithConnections = createViaGraphWithConnections({
     baseGraph,
     xyConnections,
-    { onlyFillerRegions: true },
-  )
+    onlyFillerRegions: true,
+  })
 
   return {
     ...graphWithConnections,

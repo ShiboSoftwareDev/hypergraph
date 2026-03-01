@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphWithConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphWithConnections"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 
 test("via-graph-solver04: 4 connections one per side (saturated graph)", () => {
   const baseGraph = generateViaTopologyRegions(viaTile, {
@@ -13,28 +13,31 @@ test("via-graph-solver04: 4 connections one per side (saturated graph)", () => {
 
   // Four connections, one entering from each side of the graph.
   // All four via regions will be needed, saturating the graph.
-  const graphWithConnections = createViaGraphWithConnections(baseGraph, [
-    {
-      start: { x: -2.5, y: 0.5 },
-      end: { x: 2.5, y: 0.5 },
-      connectionId: "LR",
-    },
-    {
-      start: { x: 2.5, y: -0.5 },
-      end: { x: -2.5, y: -0.5 },
-      connectionId: "RL",
-    },
-    {
-      start: { x: 0.5, y: 2.5 },
-      end: { x: 0.5, y: -2.5 },
-      connectionId: "TB",
-    },
-    {
-      start: { x: -0.5, y: -2.5 },
-      end: { x: -0.5, y: 2.5 },
-      connectionId: "BT",
-    },
-  ])
+  const graphWithConnections = createViaGraphWithConnections({
+    baseGraph,
+    xyConnections: [
+      {
+        start: { x: -2.5, y: 0.5 },
+        end: { x: 2.5, y: 0.5 },
+        connectionId: "LR",
+      },
+      {
+        start: { x: 2.5, y: -0.5 },
+        end: { x: -2.5, y: -0.5 },
+        connectionId: "RL",
+      },
+      {
+        start: { x: 0.5, y: 2.5 },
+        end: { x: 0.5, y: -2.5 },
+        connectionId: "TB",
+      },
+      {
+        start: { x: -0.5, y: -2.5 },
+        end: { x: -0.5, y: 2.5 },
+        connectionId: "BT",
+      },
+    ],
+  })
 
   const solver = new ViaGraphSolver({
     inputGraph: {

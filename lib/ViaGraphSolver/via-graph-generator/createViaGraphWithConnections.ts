@@ -24,12 +24,12 @@ export type ViaGraphWithConnections = JumperGraph & {
  * @param opts.onlyFillerRegions - When true, only connect to filler regions.
  *   This is used with convex topology to avoid isolated tiny convex regions.
  */
-export const createViaGraphWithConnections = (
-  baseGraph: JumperGraph,
-  xyConnections: XYConnection[],
-  opts?: { onlyFillerRegions?: boolean },
-): ViaGraphWithConnections => {
-  const onlyFillerRegions = opts?.onlyFillerRegions ?? false
+export const createViaGraphWithConnections = (opts: {
+  baseGraph: JumperGraph
+  xyConnections: XYConnection[]
+  onlyFillerRegions?: boolean
+}): ViaGraphWithConnections => {
+  const { baseGraph, xyConnections, onlyFillerRegions = false } = opts
   const regions: JRegion[] = [...baseGraph.regions]
   const ports: JPort[] = [...baseGraph.ports]
   const connections: Connection[] = []
@@ -51,12 +51,12 @@ export const createViaGraphWithConnections = (
     )
     regions.push(endRegion)
 
-    const startBoundary = findBoundaryRegionForPolygons(
-      start.x,
-      start.y,
-      baseGraph.regions,
-      { onlyFillerRegions },
-    )
+    const startBoundary = findBoundaryRegionForPolygons({
+      x: start.x,
+      y: start.y,
+      regions: baseGraph.regions,
+      onlyFillerRegions,
+    })
     if (startBoundary) {
       const startPort = createConnectionPort(
         `conn:${connectionId}:start-port`,
@@ -67,12 +67,12 @@ export const createViaGraphWithConnections = (
       ports.push(startPort)
     }
 
-    const endBoundary = findBoundaryRegionForPolygons(
-      end.x,
-      end.y,
-      baseGraph.regions,
-      { onlyFillerRegions },
-    )
+    const endBoundary = findBoundaryRegionForPolygons({
+      x: end.x,
+      y: end.y,
+      regions: baseGraph.regions,
+      onlyFillerRegions,
+    })
     if (endBoundary) {
       const endPort = createConnectionPort(
         `conn:${connectionId}:end-port`,

@@ -50,13 +50,13 @@ function closestPointOnPolygonEdge(
  * Only considers non-pad, non-throughJumper, non-connectionRegion regions
  * that have polygon data.
  */
-export const findBoundaryRegionForPolygons = (
-  x: number,
-  y: number,
-  regions: JRegion[],
-  opts?: { onlyFillerRegions?: boolean },
-): BoundaryRegionResult | null => {
-  const onlyFillerRegions = opts?.onlyFillerRegions ?? false
+export const findBoundaryRegionForPolygons = (opts: {
+  x: number
+  y: number
+  regions: JRegion[]
+  onlyFillerRegions?: boolean
+}): BoundaryRegionResult | null => {
+  const { x, y, regions, onlyFillerRegions = false } = opts
 
   let closestRegion: JRegion | null = null
   let closestDistance = Infinity

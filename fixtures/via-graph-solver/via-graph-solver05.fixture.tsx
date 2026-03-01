@@ -1,4 +1,5 @@
 import { GenericSolverDebugger } from "@tscircuit/solver-utils/react"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import { createConnectionPort } from "lib/JumperGraphSolver/jumper-graph-generator/createConnectionPort"
 import { createConnectionRegion } from "lib/JumperGraphSolver/jumper-graph-generator/createConnectionRegion"
 import type {
@@ -11,7 +12,6 @@ import type { ViaByNet, ViaTile } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { findBoundaryRegionForPolygons } from "lib/ViaGraphSolver/via-graph-generator/findBoundaryRegionForPolygons"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 
 // ── Configuration ──────────────────────────────────────────────────────
 const TILE_SIZE = 5
@@ -462,11 +462,11 @@ for (const xyConn of connections) {
   allRegions.push(endRegion)
 
   // Find the nearest boundary region for each endpoint
-  const startBoundary = findBoundaryRegionForPolygons(
-    start.x,
-    start.y,
-    allRegions,
-  )
+  const startBoundary = findBoundaryRegionForPolygons({
+    x: start.x,
+    y: start.y,
+    regions: allRegions,
+  })
   if (startBoundary) {
     const startPort = createConnectionPort(
       `conn:${connectionId}:start-port`,
@@ -477,7 +477,11 @@ for (const xyConn of connections) {
     allPorts.push(startPort)
   }
 
-  const endBoundary = findBoundaryRegionForPolygons(end.x, end.y, allRegions)
+  const endBoundary = findBoundaryRegionForPolygons({
+    x: end.x,
+    y: end.y,
+    regions: allRegions,
+  })
   if (endBoundary) {
     const endPort = createConnectionPort(
       `conn:${connectionId}:end-port`,

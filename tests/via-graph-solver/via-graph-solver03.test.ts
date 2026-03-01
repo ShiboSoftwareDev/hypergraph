@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
+import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 import { getSvgFromGraphicsObject } from "graphics-debug"
 import { ViaGraphSolver } from "lib/ViaGraphSolver/ViaGraphSolver"
 import { createViaGraphWithConnections } from "lib/ViaGraphSolver/via-graph-generator/createViaGraphWithConnections"
 import { generateViaTopologyRegions } from "lib/ViaGraphSolver/via-graph-generator/generateViaTopologyRegions"
-import viaTile from "assets/ViaGraphSolver/via-tile-4-regions.json"
 
 test("via-graph-solver03: 2 parallel left-to-right connections (via exclusivity test)", () => {
   const baseGraph = generateViaTopologyRegions(viaTile, {
@@ -14,18 +14,21 @@ test("via-graph-solver03: 2 parallel left-to-right connections (via exclusivity 
   // Two connections going left-to-right at different Y positions.
   // They must use different via regions even though they travel
   // in the same direction.
-  const graphWithConnections = createViaGraphWithConnections(baseGraph, [
-    {
-      start: { x: -2.5, y: 1.0 },
-      end: { x: 2.5, y: 1.0 },
-      connectionId: "P1",
-    },
-    {
-      start: { x: -2.5, y: -1.0 },
-      end: { x: 2.5, y: -1.0 },
-      connectionId: "P2",
-    },
-  ])
+  const graphWithConnections = createViaGraphWithConnections({
+    baseGraph,
+    xyConnections: [
+      {
+        start: { x: -2.5, y: 1.0 },
+        end: { x: 2.5, y: 1.0 },
+        connectionId: "P1",
+      },
+      {
+        start: { x: -2.5, y: -1.0 },
+        end: { x: 2.5, y: -1.0 },
+        connectionId: "P2",
+      },
+    ],
+  })
 
   const solver = new ViaGraphSolver({
     inputGraph: {
