@@ -54,11 +54,12 @@ function closestPointOnPolygonEdge(
  * connects to filler regions to avoid isolated tiny convex regions inside
  * the tile grid.
  */
-export const findBoundaryRegionForPolygons = (
-  x: number,
-  y: number,
-  regions: JRegion[],
-): BoundaryRegionResult | null => {
+export const findBoundaryRegionForPolygons = (params: {
+  x: number
+  y: number
+  regions: JRegion[]
+}): BoundaryRegionResult | null => {
+  const { x, y, regions } = params
   // Check if this is a convex topology by looking for filler regions
   const hasFillerRegions = regions.some((r) => r.regionId.startsWith("filler:"))
 
