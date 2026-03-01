@@ -54,7 +54,10 @@ export const findBoundaryRegionForPolygons = (
   x: number,
   y: number,
   regions: JRegion[],
+  opts?: { onlyFillerRegions?: boolean },
 ): BoundaryRegionResult | null => {
+  const onlyFillerRegions = opts?.onlyFillerRegions ?? false
+
   let closestRegion: JRegion | null = null
   let closestDistance = Infinity
   let closestPortPosition = { x, y }
@@ -66,6 +69,10 @@ export const findBoundaryRegionForPolygons = (
       region.d.isConnectionRegion
     )
       continue
+
+    // When using convex topology, only connect to filler regions to avoid
+    // isolated tiny convex regions inside the tile grid.
+    if (onlyFillerRegions && !region.regionId.startsWith("filler:")) continue
 
     const polygon = region.d.polygon
     if (!polygon || polygon.length < 3) continue

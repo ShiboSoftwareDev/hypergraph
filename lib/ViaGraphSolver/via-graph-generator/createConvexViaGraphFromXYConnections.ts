@@ -95,9 +95,11 @@ export function createConvexViaGraphFromXYConnections(
   const baseGraph: JumperGraph = { regions, ports }
 
   // Add connections to the graph
+  // Use onlyFillerRegions to avoid connecting to tiny isolated convex regions
   const graphWithConnections = createViaGraphWithConnections(
     baseGraph,
     xyConnections,
+    { onlyFillerRegions: true },
   )
 
   return {

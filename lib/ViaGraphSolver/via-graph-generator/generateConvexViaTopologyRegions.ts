@@ -1121,6 +1121,39 @@ export function generateConvexViaTopologyRegions(opts: {
           pos = { x: edgeX!, y }
         }
 
+        // Verify the port position is actually within the tile region's polygon
+        // (bounding box overlap doesn't guarantee polygon overlap for non-rectangular polygons)
+        if (tileRegion.d.polygon) {
+          // Test a point inside the tile region's polygon
+          // The test point needs to be far enough from the edge to be inside the polygon,
+          // accounting for the gap between the filler and tile region
+          // Use the gap distance + a small margin to ensure we're inside the tile polygon
+          let testPoint: Point
+          if (isTopFiller) {
+            // Gap is fillerBounds.minY - tileBounds.maxY, test point should be inside tile
+            const gap = fillerBounds.minY - tileBounds.maxY
+            const testOffset = gap + 0.01
+            testPoint = { x: pos.x, y: pos.y - testOffset }
+          } else if (isBottomFiller) {
+            const gap = tileBounds.minY - fillerBounds.maxY
+            const testOffset = gap + 0.01
+            testPoint = { x: pos.x, y: pos.y + testOffset }
+          } else if (isLeftFiller) {
+            const gap = tileBounds.minX - fillerBounds.maxX
+            const testOffset = gap + 0.01
+            testPoint = { x: pos.x + testOffset, y: pos.y }
+          } else {
+            // isRightFiller
+            const gap = fillerBounds.minX - tileBounds.maxX
+            const testOffset = gap + 0.01
+            testPoint = { x: pos.x - testOffset, y: pos.y }
+          }
+
+          if (!pointInPolygon(testPoint, tileRegion.d.polygon)) {
+            continue // Skip this port position as it's outside the tile region's polygon
+          }
+        }
+
         // Check if this position is too close to an existing port in this filler region
         const existingPositions = fillerPortPositions.get(
           fillerRegion.regionId,
@@ -1150,8 +1183,8 @@ export function generateConvexViaTopologyRegions(opts: {
   }
 
   // Step 7: Create ports between adjacent filler regions
-  // Only create ports if the shared edge is at least portPitch (trace width) long
-  // This prevents creating ports at corners where regions are too thin
+  // Always create at least one port at the midpoint for connectivity,
+  // even if the edge is shorter than portPitch
   for (let i = 0; i < fillerRegions.length; i++) {
     for (let j = i + 1; j < fillerRegions.length; j++) {
       const region1 = fillerRegions[i]
@@ -1169,12 +1202,25 @@ export function generateConvexViaTopologyRegions(opts: {
           (edge.to.x - edge.from.x) ** 2 + (edge.to.y - edge.from.y) ** 2,
         )
 
-        // Skip if edge is shorter than trace width (portPitch)
-        if (edgeLength < portPitch) {
+        // Skip edges that are essentially zero-length
+        if (edgeLength < 0.01) {
           continue
         }
 
-        const portPositions = createPortsAlongEdge(edge, portPitch)
+        // For short edges, just create one port at the midpoint
+        // For longer edges, distribute ports along the edge
+        let portPositions: Array<{ x: number; y: number }>
+        if (edgeLength < portPitch) {
+          // Single port at midpoint for short edges
+          portPositions = [
+            {
+              x: (edge.from.x + edge.to.x) / 2,
+              y: (edge.from.y + edge.to.y) / 2,
+            },
+          ]
+        } else {
+          portPositions = createPortsAlongEdge(edge, portPitch)
+        }
 
         for (const pos of portPositions) {
           createPort(
