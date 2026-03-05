@@ -1,7 +1,7 @@
 /**
  * Parallel benchmark for ViaGraphSolver on a dataset JSON with convex regions.
  *
- * Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options] [via-json-file]
+ * Usage: npx tsx scripts/benchmark-via-graph-convex-parallel.ts [options] [via-json-file]
  *
  * This script uses a single file approach where worker code is embedded as a string
  * and executed via eval in the worker thread.
@@ -44,7 +44,7 @@ if (!DATASET_PATH_OPT && !["dataset02", "dataset03"].includes(DATASET_NAME)) {
 
 if (HELP) {
   console.log(`
-Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options] [via-json-file]
+Usage: npx tsx scripts/benchmark-via-graph-convex-parallel.ts [options] [via-json-file]
 
 Options:
   --limit=N         Only run first N samples (default: all 1000)
@@ -57,12 +57,12 @@ Options:
   --help, -h        Show this help message
 
 Examples:
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --limit=100
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --dataset-path=./datasets/dataset03.json --limit=10
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --dataset=dataset03 --limit=100
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --concurrency=4 --quick
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --limit=200 --concurrency=8
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --quick assets/ViaGraphSolver/via-tile-2.json
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --limit=100
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --dataset-path=./datasets/dataset03.json --limit=10
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --dataset=dataset03 --limit=100
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --concurrency=4 --quick
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --limit=200 --concurrency=8
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --quick assets/ViaGraphSolver/via-tile-2.json
 `)
   process.exit(0)
 }
