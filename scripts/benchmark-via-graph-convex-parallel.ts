@@ -1,7 +1,7 @@
 /**
- * Parallel benchmark for ViaGraphSolver using Dataset02 with convex regions.
+ * Parallel benchmark for ViaGraphSolver on a dataset JSON with convex regions.
  *
- * Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options] [via-json-file]
+ * Usage: npx tsx scripts/benchmark-via-graph-convex-parallel.ts [options] [via-json-file]
  *
  * This script uses a single file approach where worker code is embedded as a string
  * and executed via eval in the worker thread.
@@ -20,30 +20,49 @@ const __dirname = path.dirname(__filename)
 const args = process.argv.slice(2)
 const limitArg = args.find((a) => a.startsWith("--limit="))
 const concurrencyArg = args.find((a) => a.startsWith("--concurrency="))
+const datasetArg = args.find((a) => a.startsWith("--dataset="))
+const datasetPathArg = args.find((a) => a.startsWith("--dataset-path="))
+const dataset03Flag = args.includes("--dataset03")
 const viaTileArg = args.filter((a) => !a.startsWith("--")).at(-1)
 const SAMPLE_LIMIT = limitArg ? parseInt(limitArg.split("=")[1], 10) : undefined
 const CONCURRENCY = concurrencyArg
   ? parseInt(concurrencyArg.split("=")[1], 10)
   : cpus().length
+const DATASET_NAME = (
+  dataset03Flag ? "dataset03" : datasetArg?.split("=")[1] || "dataset02"
+) as "dataset02" | "dataset03"
+const DATASET_PATH_OPT = datasetPathArg?.split("=")[1]
 const QUICK_MODE = args.includes("--quick")
 const HELP = args.includes("--help") || args.includes("-h")
 
+if (!DATASET_PATH_OPT && !["dataset02", "dataset03"].includes(DATASET_NAME)) {
+  console.error(
+    `Error: invalid dataset "${DATASET_NAME}". Use --dataset=dataset02 or --dataset=dataset03`,
+  )
+  process.exit(1)
+}
+
 if (HELP) {
   console.log(`
-Usage: npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts [options] [via-json-file]
+Usage: npx tsx scripts/benchmark-via-graph-convex-parallel.ts [options] [via-json-file]
 
 Options:
   --limit=N         Only run first N samples (default: all 1000)
   --concurrency=N   Number of parallel workers (default: CPU count = ${cpus().length})
+  --dataset-path=P  Dataset JSON path to benchmark (overrides --dataset/--dataset03)
+  --dataset=NAME    Dataset to benchmark: dataset02 | dataset03 (default: dataset02)
+  --dataset03       Shorthand for --dataset=dataset03
   --quick           Use reduced MAX_ITERATIONS for faster but less accurate results
   [via-json-file]   Optional via JSON file path (default: auto-recommended per sample)
   --help, -h        Show this help message
 
 Examples:
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --limit=100
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --concurrency=4 --quick
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --limit=200 --concurrency=8
-  npx tsx scripts/benchmark-via-graph-convex-dataset02-parallel.ts --quick assets/ViaGraphSolver/via-tile-2.json
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --limit=100
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --dataset-path=./datasets/dataset03.json --limit=10
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --dataset=dataset03 --limit=100
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --concurrency=4 --quick
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --limit=200 --concurrency=8
+  npx tsx scripts/benchmark-via-graph-convex-parallel.ts --quick assets/ViaGraphSolver/via-tile-2.json
 `)
   process.exit(0)
 }
@@ -344,11 +363,21 @@ async function runParallelBenchmark(
   return results.sort((a, b) => a.sampleIndex - b.sampleIndex)
 }
 
-// Load dataset02
-const datasetPath = path.join(
-  __dirname,
-  "../datasets/jumper-graph-solver/dataset02.json",
-)
+// Load selected dataset
+const datasetPath = DATASET_PATH_OPT
+  ? path.isAbsolute(DATASET_PATH_OPT)
+    ? DATASET_PATH_OPT
+    : path.resolve(process.cwd(), DATASET_PATH_OPT)
+  : path.join(
+      __dirname,
+      DATASET_NAME === "dataset02"
+        ? "../datasets/jumper-graph-solver/dataset02.json"
+        : "../datasets/dataset03.json",
+    )
+if (!fs.existsSync(datasetPath)) {
+  console.error(`Error: dataset JSON file not found: ${datasetPath}`)
+  process.exit(1)
+}
 const dataset: DatasetSample[] = JSON.parse(
   fs.readFileSync(datasetPath, "utf8"),
 )
@@ -385,11 +414,9 @@ if (!fs.existsSync(distPath)) {
 const samplesToRun = SAMPLE_LIMIT ? dataset.slice(0, SAMPLE_LIMIT) : dataset
 const totalSamples = samplesToRun.length
 
-console.log(
-  "Benchmark: ViaGraphSolver with Dataset02 (Convex Regions, Parallel)",
-)
+console.log(`Benchmark: ViaGraphSolver with Convex Regions (Parallel)`)
 console.log("=".repeat(70))
-console.log(`Loaded ${dataset.length} samples from dataset02`)
+console.log(`Loaded ${dataset.length} samples from ${datasetPath}`)
 if (viaTilePath) {
   console.log(`Via topology loaded from ${viaTilePath}`)
 } else {
